@@ -41,22 +41,65 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // Check if URL is valid for content scripts
+    if (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || 
+        tab.url.startsWith('chrome-extension://') || tab.url.startsWith('moz-extension://')) {
+      showStatus('Cannot check this page type', 'error');
+      return;
+    }
+
     showStatus('Checking page...', 'info');
     
-    // Send message to content script
-    chrome.tabs.sendMessage(tab.id, {
-      action: 'checkPage',
-      spellEnabled: spellToggle.checked,
-      grammarEnabled: grammarToggle.checked
-    }, (response) => {
-      if (chrome.runtime.lastError) {
-        showStatus('Error: ' + chrome.runtime.lastError.message, 'error');
-      } else if (response && response.success) {
+    try {
+      // Try to inject content script if not already loaded
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        });
+        // Inject CSS as well
+        await chrome.scripting.insertCSS({
+          target: { tabId: tab.id },
+          files: ['content.css']
+        });
+        // Wait for script to initialize
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (injectError) {
+        // Script might already be injected, that's okay
+        console.log('Script injection note:', injectError.message);
+      }
+
+      // Helper function to send message with promise
+      const sendMessagePromise = (tabId, message) => {
+        return new Promise((resolve, reject) => {
+          chrome.tabs.sendMessage(tabId, message, (response) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve(response);
+            }
+          });
+        });
+      };
+
+      // Send check page message
+      const response = await sendMessagePromise(tab.id, {
+        action: 'checkPage',
+        spellEnabled: spellToggle.checked,
+        grammarEnabled: grammarToggle.checked
+      });
+
+      if (response && response.success) {
         showStatus(`Found ${response.errorCount || 0} issues`, 'success');
+      } else if (response && response.error) {
+        showStatus('Error: ' + response.error, 'error');
       } else {
         showStatus('Check completed', 'success');
       }
-    });
+    } catch (error) {
+      showStatus('Error: ' + error.message, 'error');
+      console.error('Check page error:', error);
+    }
   });
 
   // Settings button

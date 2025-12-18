@@ -1,6 +1,9 @@
 // Content script to check and highlight errors on the page
 let isChecking = false;
 
+// Signal that content script is ready
+console.log('Spell & Grammar Checker content script loaded');
+
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'checkPage') {
@@ -9,9 +12,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: true, errorCount: result.errorCount });
       })
       .catch(error => {
+        console.error('Error in checkPage:', error);
         sendResponse({ success: false, error: error.message });
       });
-    return true;
+    return true; // Keep channel open for async response
+  }
+  
+  // Handle ping to check if script is loaded
+  if (request.action === 'ping') {
+    sendResponse({ success: true, ready: true });
+    return false;
   }
 });
 
