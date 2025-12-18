@@ -287,17 +287,37 @@ input:checked + .slider:before {
 .error-word {
   font-weight: 600;
   color: #2d3748;
-  font-size: 14px;
-  margin-bottom: 6px;
+  font-size: 15px;
+  margin-bottom: 8px;
+  line-height: 1.6;
 }
 
-.error-word .word-text {
+.error-word .word-original {
   color: #ef4444;
   font-weight: 700;
+  text-decoration: line-through;
+  text-decoration-color: #ef4444;
+  text-decoration-thickness: 2px;
 }
 
-.error-item.grammar .error-word .word-text {
+.error-item.grammar .error-word .word-original {
   color: #f59e0b;
+  text-decoration-color: #f59e0b;
+}
+
+.error-word .word-arrow {
+  color: #718096;
+  font-weight: 500;
+  margin: 0 4px;
+}
+
+.error-word .word-suggestion {
+  color: #16a34a;
+  font-weight: 700;
+  background: #f0fdf4;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #bbf7d0;
 }
 
 .error-type {
