@@ -117,6 +117,9 @@ async function checkPage(spellEnabled, grammarEnabled) {
       if (elementInfo) {
         // Calculate position within the element's text
         const positionInElement = errorPosition - elementInfo.startPosition;
+        const endPosition = error.endPosition !== undefined 
+          ? error.endPosition - elementInfo.startPosition 
+          : positionInElement + (error.word || '').length;
         
         const errorId = errorIdCounter++;
         const errorInfo = {
@@ -125,6 +128,7 @@ async function checkPage(spellEnabled, grammarEnabled) {
           suggestions: error.suggestions || [],
           type: error.type || 'spelling',
           position: positionInElement,
+          endPosition: endPosition,
           element: elementInfo.element,
           elementText: elementInfo.text,
           context: elementInfo.context
@@ -143,6 +147,7 @@ async function checkPage(spellEnabled, grammarEnabled) {
               suggestions: error.suggestions || [],
               type: error.type || 'spelling',
               position: wordIndex,
+              endPosition: wordIndex + (error.word || '').length,
               element: elementInfo.element,
               elementText: elementInfo.text,
               context: elementInfo.context

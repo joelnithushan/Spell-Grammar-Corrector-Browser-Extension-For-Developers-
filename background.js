@@ -18,25 +18,61 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
   }
 
   // Build prompt based on enabled features
-  let prompt = 'You are a professional spell and grammar checker. Analyze the following text and identify ALL ';
+  let prompt = 'You are an expert English grammar and spelling analyzer designed for a browser extension.\n\n';
+  prompt += 'Your task:\n';
+  prompt += '- Analyze web page text content provided by the user.\n';
+  
   const checks = [];
-  if (spellEnabled) checks.push('spelling errors');
-  if (grammarEnabled) checks.push('grammar errors');
-  prompt += checks.join(' and ') + '.\n\n';
-  prompt += 'IMPORTANT: Check the ENTIRE text thoroughly. Find ALL errors.\n\n';
-  prompt += 'For each error found, provide:\n';
-  prompt += '1. The incorrect word/phrase (exact text as it appears)\n';
-  prompt += '2. The position (character index from the start of the text, starting at 0)\n';
-  prompt += '3. Suggested corrections (provide 2-4 alternatives, ordered by best match first)\n';
-  prompt += '4. Type: "spelling" for spelling errors, "grammar" for grammar errors\n\n';
-  prompt += 'Return ONLY a valid JSON array. No explanations, no markdown, just the JSON array.\n';
-  prompt += 'Example format:\n';
-  prompt += '[{"word": "recieved", "position": 5, "suggestions": ["received", "receive"], "type": "spelling"}, {"word": "they was", "position": 45, "suggestions": ["they were", "they are"], "type": "grammar"}]\n\n';
+  if (spellEnabled) checks.push('spelling mistakes');
+  if (grammarEnabled) checks.push('grammar issues');
+  prompt += `- Identify ONLY ${checks.join(' and ')}.\n`;
+  
+  prompt += '- Do NOT rewrite the text.\n';
+  prompt += '- Do NOT change formatting.\n';
+  prompt += '- Do NOT remove code blocks, HTML tags, or developer comments.\n\n';
+  
+  prompt += 'Important rules:\n';
+  prompt += '1. Never modify the original content.\n';
+  prompt += '2. Never auto-correct anything.\n';
+  prompt += '3. Only report issues.\n';
+  prompt += '4. Every issue must include:\n';
+  prompt += '   - Exact original text (word or phrase as it appears)\n';
+  prompt += '   - Issue type ("spelling" or "grammar")\n';
+  prompt += '   - Character start index (position from start of text, starting at 0)\n';
+  prompt += '   - Character end index (position where the error ends)\n';
+  prompt += '   - One or more suggested alternatives (array of strings, ordered by best match first)\n';
+  prompt += '5. Ignore:\n';
+  prompt += '   - Code syntax\n';
+  prompt += '   - Variable names\n';
+  prompt += '   - Function names\n';
+  prompt += '   - File paths\n';
+  prompt += '   - URLs\n';
+  prompt += '   - JSON keys\n';
+  prompt += '   - Console logs\n';
+  prompt += '   - HTML tags and attributes\n';
+  prompt += '   - CSS properties\n';
+  prompt += '   - JavaScript code blocks\n';
+  prompt += '6. Focus only on visible human-readable content.\n';
+  prompt += '7. Be precise and concise.\n';
+  prompt += '8. Output must be valid JSON only. No extra text, no markdown, no explanations.\n\n';
+  
+  prompt += 'Output format (JSON array):\n';
+  prompt += '[{\n';
+  prompt += '  "word": "exact text as it appears",\n';
+  prompt += '  "position": start_index,\n';
+  prompt += '  "endPosition": end_index,\n';
+  prompt += '  "type": "spelling" or "grammar",\n';
+  prompt += '  "suggestions": ["suggestion1", "suggestion2", ...]\n';
+  prompt += '}, ...]\n\n';
+  
+  prompt += 'Example:\n';
+  prompt += '[{"word": "recieved", "position": 5, "endPosition": 13, "type": "spelling", "suggestions": ["received"]}, {"word": "they was", "position": 45, "endPosition": 53, "type": "grammar", "suggestions": ["they were", "they are"]}]\n\n';
+  
   prompt += 'Text to analyze:\n';
   prompt += '---\n';
   prompt += text;
-  prompt += '\n---\n';
-  prompt += 'Now analyze this text and return the JSON array with all errors found:';
+  prompt += '\n---\n\n';
+  prompt += 'Return ONLY the JSON array with all errors found. No other text:';
 
   try {
     let response;
