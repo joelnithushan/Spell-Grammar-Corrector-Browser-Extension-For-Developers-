@@ -1,6 +1,5 @@
 // Content script to check and highlight errors on the page
 let isChecking = false;
-let highlights = [];
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -91,10 +90,10 @@ function highlightErrors(element, errors, originalText) {
   });
   
   let processedText = originalText;
-  const textNodes = [];
+  const localHighlights = [];
   
   // Build highlighted text by replacing errors with markers
-  sortedErrors.forEach(error => {
+  sortedErrors.forEach((error, index) => {
     const word = error.word || '';
     let position = error.position;
     
@@ -116,17 +115,17 @@ function highlightErrors(element, errors, originalText) {
       };
       
       // Replace with marker
-      processedText = before + `__HIGHLIGHT_${highlights.length}__` + after;
-      highlights.push(highlightData);
+      processedText = before + `__HIGHLIGHT_${index}__` + after;
+      localHighlights.push(highlightData);
     }
   });
   
   // Rebuild the text with highlights
-  if (highlights.length > 0) {
+  if (localHighlights.length > 0) {
     let finalHTML = processedText;
     
     // Replace markers with actual highlight spans
-    highlights.forEach((highlightData, index) => {
+    localHighlights.forEach((highlightData, index) => {
       const marker = `__HIGHLIGHT_${index}__`;
       const highlightSpan = `<span class="spell-error spell-error-${highlightData.type}" data-suggestions='${JSON.stringify(highlightData.suggestions)}' data-type="${highlightData.type}">${escapeHtml(highlightData.word)}</span>`;
       finalHTML = finalHTML.replace(marker, highlightSpan);
