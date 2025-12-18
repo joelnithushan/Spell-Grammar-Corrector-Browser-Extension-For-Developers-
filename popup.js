@@ -192,6 +192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         // Test DeepSeek/OpenRouter API
         response = await fetch('https://openrouter.ai/api/v1/models', {
+          method: 'GET',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json'

@@ -89,11 +89,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       let response;
       if (selectedProvider === 'deepseek') {
+        const headers = {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        };
+        
         response = await fetch('https://openrouter.ai/api/v1/models', {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-          }
+          method: 'GET',
+          headers: headers
         });
       } else {
         // Test Gemini API

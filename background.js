@@ -98,14 +98,25 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
       });
     } else {
       // Use DeepSeek via OpenRouter
+      const headers = {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      };
+      
+      // Add optional headers if extension URL is available
+      try {
+        const extensionUrl = chrome.runtime.getURL('');
+        if (extensionUrl) {
+          headers['HTTP-Referer'] = extensionUrl;
+          headers['X-Title'] = 'Spell & Grammar Checker Extension';
+        }
+      } catch (e) {
+        // Ignore if URL not available
+      }
+      
       response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': chrome.runtime.getURL(''),
-          'X-Title': 'Spell & Grammar Checker Extension'
-        },
+        headers: headers,
         body: JSON.stringify({
           model: 'deepseek/deepseek-chat',
           messages: [
