@@ -11,10 +11,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
   const result = await chrome.storage.sync.get(['apiKey', 'geminiApiKey', 'apiProvider']);
   const apiProvider = result.apiProvider || 'deepseek';
-  const apiKey = apiProvider === 'deepseek' ? result.apiKey : result.geminiApiKey;
+  let apiKey = apiProvider === 'deepseek' ? result.apiKey : result.geminiApiKey;
 
-  if (!apiKey) {
-    throw new Error('API key not configured');
+  if (!apiKey || (apiKey = apiKey.trim()) === '') {
+    throw new Error('API key not configured. Please set your API key in settings.');
+  }
+  
+  // Validate API key format
+  if (apiProvider === 'deepseek' && !apiKey.startsWith('sk-')) {
+    throw new Error('Invalid API key format. OpenRouter API keys must start with "sk-". Please check your API key in settings.');
   }
 
   // Build prompt based on enabled features
@@ -132,8 +137,27 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
     }
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || 'API request failed');
+      let errorMessage = 'API request failed';
+      let errorDetails = null;
+      try {
+        const errorText = await response.text();
+        console.error('API Error Response (raw):', errorText);
+        try {
+          errorDetails = JSON.parse(errorText);
+          errorMessage = errorDetails.error?.message || errorDetails.message || errorDetails.error || `HTTP ${response.status}: ${response.statusText}`;
+        } catch (parseError) {
+          errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
+        }
+      } catch (e) {
+        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      }
+      
+      // Provide more helpful error messages
+      if (response.status === 401 || errorMessage.includes('auth') || errorMessage.includes('key') || errorMessage.includes('cookie')) {
+        errorMessage = `Authentication failed: ${errorMessage}. Please verify your API key is correct and starts with "sk-" for OpenRouter.`;
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
