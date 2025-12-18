@@ -137,18 +137,52 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
     
     // Try to extract JSON from the response
     let errors = [];
+    console.log('Raw API response content:', content.substring(0, 500));
+    
     try {
-      // Look for JSON array in the response
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      // Look for JSON array in the response (more flexible matching)
+      let jsonMatch = content.match(/\[[\s\S]*?\]/);
+      
+      // If no array found, try to find JSON object array
+      if (!jsonMatch) {
+        jsonMatch = content.match(/\{[\s\S]*?\}/);
+        if (jsonMatch && jsonMatch[0].includes('[')) {
+          // Extract array from object
+          const arrayMatch = jsonMatch[0].match(/\[[\s\S]*?\]/);
+          if (arrayMatch) jsonMatch = arrayMatch;
+        }
+      }
+      
       if (jsonMatch) {
         errors = JSON.parse(jsonMatch[0]);
+        console.log('Parsed errors:', errors.length);
       } else {
         // Fallback: try to parse the entire content
-        errors = JSON.parse(content);
+        try {
+          errors = JSON.parse(content);
+          console.log('Parsed entire content as JSON');
+        } catch (e) {
+          // Try to extract JSON from markdown code blocks
+          const codeBlockMatch = content.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+          if (codeBlockMatch) {
+            errors = JSON.parse(codeBlockMatch[1]);
+            console.log('Extracted JSON from code block');
+          } else {
+            throw new Error('No valid JSON found in response');
+          }
+        }
+      }
+      
+      // Validate errors array
+      if (!Array.isArray(errors)) {
+        console.error('Parsed result is not an array:', errors);
+        errors = [];
+      } else {
+        console.log('Successfully parsed', errors.length, 'errors');
       }
     } catch (parseError) {
       console.error('Failed to parse API response:', parseError);
-      console.error('Response content:', content);
+      console.error('Response content (first 1000 chars):', content.substring(0, 1000));
       // Return empty array if parsing fails
       errors = [];
     }

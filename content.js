@@ -90,17 +90,32 @@ async function checkPage(spellEnabled, grammarEnabled) {
 
   try {
     // Send entire page text in one API request
+    const textToCheck = fullText.trim();
+    console.log('Sending text to API, length:', textToCheck.length);
+    console.log('Text preview:', textToCheck.substring(0, 200));
+    
     const response = await chrome.runtime.sendMessage({
       action: 'checkText',
-      text: fullText.trim(),
+      text: textToCheck,
       spellEnabled: spellEnabled,
       grammarEnabled: grammarEnabled
     });
 
-    if (!response.success || !response.result || response.result.length === 0) {
+    console.log('API Response:', response);
+
+    if (!response || !response.success) {
+      console.error('API request failed:', response?.error);
+      isChecking = false;
+      return { errorCount: 0, errors: [], error: response?.error || 'API request failed' };
+    }
+
+    if (!response.result || response.result.length === 0) {
+      console.log('No errors found by AI');
       isChecking = false;
       return { errorCount: 0, errors: [] };
     }
+
+    console.log('Found', response.result.length, 'errors from AI');
 
     // Map errors back to their elements
     let allErrors = [];
@@ -211,19 +226,48 @@ function getElementContext(element) {
 
 function getTextElements() {
   // Get all text-containing elements, excluding script, style, etc.
-  const selectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th, span, div, label, button, a';
+  const selectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th, span, div, label, button, a, article, section, main, aside, blockquote, figcaption';
   const elements = Array.from(document.querySelectorAll(selectors));
   
   return elements.filter(el => {
-    // Filter out elements that are hidden or contain only other elements
+    // Skip script, style, and other non-content elements
+    if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'NOSCRIPT') {
+      return false;
+    }
+    
+    // Filter out elements that are hidden
     const style = window.getComputedStyle(el);
-    if (style.display === 'none' || style.visibility === 'hidden') {
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+      return false;
+    }
+    
+    // Skip if element is too small (likely not visible)
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
       return false;
     }
     
     // Check if element has meaningful text content
     const text = el.textContent.trim();
-    return text.length > 0 && !el.querySelector('script, style, iframe');
+    
+    // Skip if no text or only whitespace
+    if (text.length < 2) {
+      return false;
+    }
+    
+    // Skip if element contains only other elements (no direct text)
+    // But allow if it has text nodes
+    const hasDirectText = Array.from(el.childNodes).some(node => 
+      node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0
+    );
+    
+    // Skip if contains script/style/iframe
+    if (el.querySelector('script, style, iframe, noscript')) {
+      return false;
+    }
+    
+    // Include if has text content (either direct or from children)
+    return text.length > 0;
   });
 }
 

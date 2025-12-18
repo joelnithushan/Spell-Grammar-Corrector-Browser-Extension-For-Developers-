@@ -103,11 +103,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Hide status, show results
         status.style.display = 'none';
         
-        if (errorCountValue > 0 && response.errors) {
+        if (errorCountValue > 0 && response.errors && response.errors.length > 0) {
+          console.log('Displaying', errorCountValue, 'errors');
           displayErrors(response.errors, tab.id);
         } else {
+          console.log('No errors found in response');
           info.style.display = 'block';
-          info.innerHTML = '<p>No errors found! ✓</p>';
+          info.innerHTML = '<p>No errors found! ✓</p><p style="font-size: 11px; color: #666; margin-top: 4px;">Check browser console (F12) for debug info</p>';
         }
       } else if (response && response.error) {
         status.style.display = 'block';
@@ -115,10 +117,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusText.textContent = 'Error: ' + response.error;
         statusText.style.color = '#991b1b';
         info.style.display = 'block';
+        console.error('Analysis error:', response.error);
       } else {
+        console.warn('Unexpected response format:', response);
         status.style.display = 'none';
         info.style.display = 'block';
-        info.innerHTML = '<p>Analysis completed. No errors found.</p>';
+        info.innerHTML = '<p>Analysis completed. No errors found.</p><p style="font-size: 11px; color: #666; margin-top: 4px;">Check browser console (F12) for debug info</p>';
       }
     } catch (error) {
       status.style.display = 'block';
