@@ -1,9 +1,20 @@
 // Content script to check and highlight errors on the page
-let isChecking = false;
-let errorData = []; // Store errors with element references
+// Use window object to prevent conflicts when script is injected multiple times
+if (!window.spellGrammarChecker) {
+  window.spellGrammarChecker = {
+    isChecking: false,
+    errorData: [],
+    initialized: true
+  };
+  
+  console.log('Spell & Grammar Checker content script loaded');
+} else {
+  console.log('Spell & Grammar Checker already initialized');
+}
 
-// Signal that content script is ready
-console.log('Spell & Grammar Checker content script loaded');
+const { isChecking: _isChecking, errorData: _errorData } = window.spellGrammarChecker;
+let isChecking = _isChecking;
+let errorData = _errorData;
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -45,15 +56,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function checkPage(spellEnabled, grammarEnabled) {
-  if (isChecking) {
+  if (window.spellGrammarChecker.isChecking) {
     return { errorCount: 0, errors: [] };
   }
 
+  window.spellGrammarChecker.isChecking = true;
   isChecking = true;
   
   // Clear previous highlights and error data
   clearHighlights();
-  errorData = [];
+  window.spellGrammarChecker.errorData = [];
+  errorData = window.spellGrammarChecker.errorData;
 
   // Get all text content from the page
   const textElements = getTextElements();
@@ -84,6 +97,7 @@ async function checkPage(spellEnabled, grammarEnabled) {
   });
 
   if (fullText.trim().length === 0) {
+    window.spellGrammarChecker.isChecking = false;
     isChecking = false;
     return { errorCount: 0, errors: [] };
   }
@@ -149,7 +163,8 @@ async function checkPage(spellEnabled, grammarEnabled) {
           context: elementInfo.context
         };
         allErrors.push(errorInfo);
-        errorData.push(errorInfo);
+        window.spellGrammarChecker.errorData.push(errorInfo);
+        errorData = window.spellGrammarChecker.errorData;
       } else {
         // If position not found, try to find by word in element text
         elementMap.forEach(elementInfo => {
@@ -188,6 +203,7 @@ async function checkPage(spellEnabled, grammarEnabled) {
     };
   } catch (error) {
     console.error('Error checking page:', error);
+    window.spellGrammarChecker.isChecking = false;
     isChecking = false;
     return { errorCount: 0, errors: [] };
   }
@@ -273,7 +289,7 @@ function getTextElements() {
 
 function highlightError(errorId) {
   // Find the error by ID
-  const error = errorData.find(e => e.id === errorId);
+  const error = window.spellGrammarChecker.errorData.find(e => e.id === errorId);
   if (!error) {
     console.error('Error not found:', errorId);
     return;
@@ -491,5 +507,9 @@ function clearHighlights() {
   document.querySelectorAll('.suggestions-popup').forEach(el => {
     el.remove();
   });
+  
+  // Reset error data
+  window.spellGrammarChecker.errorData = [];
+  errorData = window.spellGrammarChecker.errorData;
 }
 

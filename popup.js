@@ -77,16 +77,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       // Try to inject content script if not already loaded
       try {
-        await chrome.scripting.executeScript({
+        // Check if script is already loaded
+        const checkScript = await chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          files: ['content.js']
-        });
-        await chrome.scripting.insertCSS({
-          target: { tabId: tab.id },
-          files: ['content.css']
-        });
-        await new Promise(resolve => setTimeout(resolve, 200));
+          func: () => {
+            return typeof window.spellGrammarChecker !== 'undefined';
+          }
+        }).catch(() => null);
+        
+        const isLoaded = checkScript && checkScript[0]?.result;
+        
+        if (!isLoaded) {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js']
+          });
+          await chrome.scripting.insertCSS({
+            target: { tabId: tab.id },
+            files: ['content.css']
+          });
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } else {
+          console.log('Content script already loaded');
+        }
       } catch (injectError) {
+        // Script might already be injected via manifest, that's okay
         console.log('Script injection note:', injectError.message);
       }
 
