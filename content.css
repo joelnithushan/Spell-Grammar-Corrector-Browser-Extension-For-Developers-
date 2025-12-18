@@ -76,20 +76,25 @@
   transform: translateX(2px);
 }
 
+/* Overlay highlight (non-intrusive) */
+.spell-error-overlay {
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+}
+
 /* Highlighted error animation */
 .spell-error-highlighted {
   animation: pulse-highlight 2s ease-in-out;
-  box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 0 15px rgba(102, 126, 234, 0.6) !important;
 }
 
 @keyframes pulse-highlight {
   0%, 100% {
-    background: #fef2f2;
+    opacity: 0.3;
     transform: scale(1);
   }
   50% {
-    background: #fee2e2;
-    transform: scale(1.05);
+    opacity: 0.5;
+    transform: scale(1.02);
   }
 }
 

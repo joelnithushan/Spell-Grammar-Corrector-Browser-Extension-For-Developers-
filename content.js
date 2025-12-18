@@ -181,38 +181,115 @@ function highlightError(errorId) {
   // Clear any existing highlights first
   clearHighlights();
   
-  // Store original HTML if not already stored
-  if (!element.dataset.originalHtml) {
-    element.dataset.originalHtml = element.innerHTML;
+  // Scroll to element first
+  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  
+  // Create a visual overlay without modifying the page HTML
+  // Use Range API to find the exact text position
+  const range = document.createRange();
+  const walker = document.createTreeWalker(
+    element,
+    NodeFilter.SHOW_TEXT,
+    null,
+    false
+  );
+  
+  let textNode = null;
+  let charCount = 0;
+  let found = false;
+  
+  // Find the text node containing our word
+  while (textNode = walker.nextNode()) {
+    const nodeText = textNode.textContent;
+    const nodeLength = nodeText.length;
+    
+    if (charCount + nodeLength > position) {
+      // Found the text node containing our word
+      const offset = position - charCount;
+      
+      if (offset + word.length <= nodeLength) {
+        // Create range for the specific word
+        range.setStart(textNode, offset);
+        range.setEnd(textNode, offset + word.length);
+        
+        // Create overlay div positioned absolutely
+        const rect = range.getBoundingClientRect();
+        const overlay = document.createElement('div');
+        overlay.className = `spell-error-overlay spell-error-${error.type}`;
+        overlay.dataset.errorId = errorId;
+        overlay.style.position = 'fixed';
+        overlay.style.left = rect.left + 'px';
+        overlay.style.top = rect.top + 'px';
+        overlay.style.width = rect.width + 'px';
+        overlay.style.height = rect.height + 'px';
+        overlay.style.zIndex = '999999';
+        overlay.style.pointerEvents = 'none';
+        overlay.style.borderBottom = error.type === 'grammar' ? '3px wavy #f59e0b' : '3px wavy #ef4444';
+        overlay.style.backgroundColor = error.type === 'grammar' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+        overlay.style.borderRadius = '2px';
+        overlay.style.transition = 'all 0.3s ease';
+        
+        document.body.appendChild(overlay);
+        
+        // Add pulsing animation
+        setTimeout(() => {
+          overlay.classList.add('spell-error-highlighted');
+          setTimeout(() => {
+            overlay.classList.remove('spell-error-highlighted');
+          }, 2000);
+        }, 100);
+        
+        // Update position on scroll/resize
+        const updatePosition = () => {
+          const newRect = range.getBoundingClientRect();
+          overlay.style.left = newRect.left + 'px';
+          overlay.style.top = newRect.top + 'px';
+          overlay.style.width = newRect.width + 'px';
+          overlay.style.height = newRect.height + 'px';
+        };
+        
+        window.addEventListener('scroll', updatePosition, true);
+        window.addEventListener('resize', updatePosition);
+        
+        // Store cleanup function
+        overlay.dataset.cleanup = 'true';
+        overlay._cleanup = () => {
+          window.removeEventListener('scroll', updatePosition, true);
+          window.removeEventListener('resize', updatePosition);
+        };
+        
+        found = true;
+        break;
+      }
+    }
+    
+    charCount += nodeLength;
   }
   
-  // Find and highlight the specific word
-  if (position >= 0 && position < text.length) {
-    const before = text.substring(0, position);
-    const wordText = text.substring(position, position + word.length);
-    const after = text.substring(position + word.length);
+  // Fallback: if we can't find exact position, just highlight the element
+  if (!found) {
+    const rect = element.getBoundingClientRect();
+    const overlay = document.createElement('div');
+    overlay.className = `spell-error-overlay spell-error-${error.type}`;
+    overlay.dataset.errorId = errorId;
+    overlay.style.position = 'fixed';
+    overlay.style.left = rect.left + 'px';
+    overlay.style.top = rect.top + 'px';
+    overlay.style.width = rect.width + 'px';
+    overlay.style.height = rect.height + 'px';
+    overlay.style.zIndex = '999999';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.border = error.type === 'grammar' ? '3px solid #f59e0b' : '3px solid #ef4444';
+    overlay.style.backgroundColor = error.type === 'grammar' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+    overlay.style.borderRadius = '4px';
     
-    // Create highlight span
-    const highlightSpan = `<span class="spell-error spell-error-${error.type}" data-error-id="${errorId}" data-suggestions='${JSON.stringify(error.suggestions)}' data-type="${error.type}">${escapeHtml(wordText)}</span>`;
-    const newHTML = escapeHtml(before) + highlightSpan + escapeHtml(after);
+    document.body.appendChild(overlay);
     
-    // Replace element content
-    element.innerHTML = newHTML;
-    element.classList.add('spell-checked');
-    element.dataset.hasErrors = 'true';
-    
-    // Scroll to element
-    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    
-    // Add pulsing animation
     setTimeout(() => {
-      const highlight = element.querySelector(`[data-error-id="${errorId}"]`);
-      if (highlight) {
-        highlight.classList.add('spell-error-highlighted');
-        setTimeout(() => {
-          highlight.classList.remove('spell-error-highlighted');
-        }, 2000);
-      }
+      overlay.classList.add('spell-error-highlighted');
+      setTimeout(() => {
+        overlay.classList.remove('spell-error-highlighted');
+      }, 2000);
     }, 100);
   }
 }
@@ -281,27 +358,15 @@ function replaceWord(element, replacement) {
 }
 
 function clearHighlights() {
-  // Restore original HTML for all elements that were modified
-  document.querySelectorAll('[data-original-html]').forEach(el => {
-    if (el.dataset.originalHtml) {
-      el.innerHTML = el.dataset.originalHtml;
-      delete el.dataset.originalHtml;
-      el.classList.remove('spell-checked');
-      delete el.dataset.hasErrors;
+  // Remove all overlay highlights (non-intrusive)
+  document.querySelectorAll('.spell-error-overlay').forEach(overlay => {
+    if (overlay._cleanup) {
+      overlay._cleanup();
     }
+    overlay.remove();
   });
   
-  // Also check elements with spell-checked class
-  document.querySelectorAll('.spell-checked').forEach(el => {
-    if (el.dataset.originalHtml) {
-      el.innerHTML = el.dataset.originalHtml;
-      delete el.dataset.originalHtml;
-      el.classList.remove('spell-checked');
-      delete el.dataset.hasErrors;
-    }
-  });
-  
-  // Remove all highlights
+  // Remove any old-style highlights (for backward compatibility)
   document.querySelectorAll('.spell-error').forEach(el => {
     const parent = el.parentElement;
     if (parent && parent.dataset && parent.dataset.originalHtml) {
