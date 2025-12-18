@@ -106,17 +106,40 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       // Send check page message
-      const response = await sendMessagePromise(tab.id, {
-        action: 'checkPage',
-        spellEnabled: spellToggle.checked,
-        grammarEnabled: grammarToggle.checked
-      });
+      let response;
+      try {
+        response = await sendMessagePromise(tab.id, {
+          action: 'checkPage',
+          spellEnabled: spellToggle.checked,
+          grammarEnabled: grammarToggle.checked
+        });
+      } catch (error) {
+        console.error('Error sending message to content script:', error);
+        status.style.display = 'block';
+        status.style.background = '#fef2f2';
+        statusText.textContent = 'Error: ' + (error.message || 'Failed to communicate with page');
+        statusText.style.color = '#991b1b';
+        info.style.display = 'block';
+        controls.style.display = 'block';
+        return;
+      }
+
+      if (!response) {
+        status.style.display = 'block';
+        status.style.background = '#fef2f2';
+        statusText.textContent = 'Error: No response from page. Please refresh the page and try again.';
+        statusText.style.color = '#991b1b';
+        info.style.display = 'block';
+        controls.style.display = 'block';
+        return;
+      }
 
       if (response && response.success) {
         const errorCountValue = response.errorCount || 0;
         
         // Hide status, show results
         status.style.display = 'none';
+        controls.style.display = 'block';
         
         if (errorCountValue > 0 && response.errors && response.errors.length > 0) {
           console.log('Displaying', errorCountValue, 'errors');
@@ -132,11 +155,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusText.textContent = 'Error: ' + response.error;
         statusText.style.color = '#991b1b';
         info.style.display = 'block';
+        controls.style.display = 'block';
         console.error('Analysis error:', response.error);
       } else {
         console.warn('Unexpected response format:', response);
         status.style.display = 'none';
         info.style.display = 'block';
+        controls.style.display = 'block';
         info.innerHTML = '<p>Analysis completed. No errors found.</p><p style="font-size: 11px; color: #666; margin-top: 4px;">Check browser console (F12) for debug info</p>';
       }
     } catch (error) {

@@ -24,14 +24,15 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
     throw new Error('API key is empty. Please set your API key in settings.');
   }
   
-  // Validate API key format for OpenRouter
+  // Validate API key format for OpenRouter (warn but don't block)
   if (apiProvider === 'deepseek' && !apiKey.startsWith('sk-')) {
-    throw new Error('Invalid API key format. OpenRouter API keys must start with "sk-". Please check your API key in settings.');
+    console.warn('Warning: OpenRouter API key should start with "sk-". Current key format may be incorrect.');
   }
   
   console.log('Using API provider:', apiProvider);
   console.log('API key length:', apiKey.length);
   console.log('API key starts with sk-:', apiKey.startsWith('sk-'));
+  console.log('API key preview (first 15 chars):', apiKey.substring(0, 15) + '...');
 
   // Build prompt based on enabled features
   let prompt = 'You are an expert English grammar and spelling analyzer designed for a browser extension.\n\n';
@@ -165,10 +166,11 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
       let errorDetails = null;
       try {
         const errorText = await response.text();
+        console.error('API Error Response Status:', response.status, response.statusText);
         console.error('API Error Response (raw):', errorText);
         try {
           errorDetails = JSON.parse(errorText);
-          errorMessage = errorDetails.error?.message || errorDetails.message || errorDetails.error || `HTTP ${response.status}: ${response.statusText}`;
+          errorMessage = errorDetails.error?.message || errorDetails.message || errorDetails.error || errorDetails.error?.code || `HTTP ${response.status}: ${response.statusText}`;
         } catch (parseError) {
           errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
         }
@@ -177,8 +179,12 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
       }
       
       // Provide more helpful error messages
-      if (response.status === 401 || errorMessage.includes('auth') || errorMessage.includes('key') || errorMessage.includes('cookie')) {
-        errorMessage = `Authentication failed: ${errorMessage}. Please verify your API key is correct and starts with "sk-" for OpenRouter.`;
+      if (response.status === 401 || response.status === 403 || errorMessage.toLowerCase().includes('auth') || errorMessage.toLowerCase().includes('key') || errorMessage.toLowerCase().includes('cookie') || errorMessage.toLowerCase().includes('unauthorized')) {
+        errorMessage = `Authentication failed: ${errorMessage}. Please verify your API key is correct in settings. For OpenRouter, keys should start with "sk-".`;
+      } else if (response.status === 429) {
+        errorMessage = `Rate limit exceeded: ${errorMessage}. Please try again later.`;
+      } else if (response.status >= 500) {
+        errorMessage = `Server error: ${errorMessage}. Please try again later.`;
       }
       
       throw new Error(errorMessage);

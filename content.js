@@ -112,11 +112,20 @@
         text: textToCheck,
         spellEnabled: spellEnabled,
         grammarEnabled: grammarEnabled
+      }).catch(error => {
+        console.error('Error sending message to background:', error);
+        return { success: false, error: error.message || 'Failed to communicate with background script' };
       });
 
       console.log('API Response:', response);
 
-      if (!response || !response.success) {
+      if (!response) {
+        console.error('No response from background script');
+        window.spellGrammarChecker.isChecking = false;
+        return { errorCount: 0, errors: [], error: 'No response from background script. Check if API key is configured.' };
+      }
+
+      if (!response.success) {
         console.error('API request failed:', response?.error);
         window.spellGrammarChecker.isChecking = false;
         return { errorCount: 0, errors: [], error: response?.error || 'API request failed' };
