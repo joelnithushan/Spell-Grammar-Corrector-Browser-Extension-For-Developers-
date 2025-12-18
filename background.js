@@ -9,8 +9,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
-  const result = await chrome.storage.sync.get(['apiKey']);
-  const apiKey = result.apiKey;
+  const result = await chrome.storage.sync.get(['apiKey', 'geminiApiKey', 'apiProvider']);
+  const apiProvider = result.apiProvider || 'deepseek';
+  const apiKey = apiProvider === 'deepseek' ? result.apiKey : result.geminiApiKey;
 
   if (!apiKey) {
     throw new Error('API key not configured');
@@ -38,26 +39,50 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
   prompt += 'Now analyze this text and return the JSON array with all errors found:';
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': chrome.runtime.getURL(''),
-        'X-Title': 'Spell & Grammar Checker Extension'
-      },
-      body: JSON.stringify({
-        model: 'deepseek/deepseek-chat',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
+    let response;
+    
+    if (apiProvider === 'gemini') {
+      // Use Gemini API
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 4000
           }
-        ],
-        temperature: 0.2,
-        max_tokens: 4000
-      })
-    });
+        })
+      });
+    } else {
+      // Use DeepSeek via OpenRouter
+      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': chrome.runtime.getURL(''),
+          'X-Title': 'Spell & Grammar Checker Extension'
+        },
+        body: JSON.stringify({
+          model: 'deepseek/deepseek-chat',
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.2,
+          max_tokens: 4000
+        })
+      });
+    }
 
     if (!response.ok) {
       const error = await response.json();
@@ -65,7 +90,14 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
     }
 
     const data = await response.json();
-    const content = data.choices[0]?.message?.content || '';
+    
+    // Extract content based on API provider
+    let content = '';
+    if (apiProvider === 'gemini') {
+      content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } else {
+      content = data.choices[0]?.message?.content || '';
+    }
     
     // Try to extract JSON from the response
     let errors = [];
@@ -80,6 +112,7 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
       }
     } catch (parseError) {
       console.error('Failed to parse API response:', parseError);
+      console.error('Response content:', content);
       // Return empty array if parsing fails
       errors = [];
     }

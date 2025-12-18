@@ -15,6 +15,23 @@
 
     <div class="settings-section">
       <div class="setting-item">
+        <label class="setting-label">
+          <strong>API Provider</strong>
+          <span class="setting-desc">Choose which AI service to use for spell and grammar checking</span>
+        </label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="apiProvider" value="deepseek" id="providerDeepseek" checked>
+            <span>DeepSeek (OpenRouter)</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="apiProvider" value="gemini" id="providerGemini">
+            <span>Google Gemini</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item" id="deepseekSettings">
         <label for="apiKey" class="setting-label">
           <strong>DeepSeek Open Router API Key</strong>
           <span class="setting-desc">Get your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></span>
@@ -24,10 +41,32 @@
             type="password" 
             id="apiKey" 
             class="input-field" 
-            placeholder="Enter your API key"
+            placeholder="Enter your OpenRouter API key"
             autocomplete="off"
           >
           <button id="toggleVisibility" class="toggle-btn" title="Show/Hide API Key">
+            👁️
+          </button>
+        </div>
+        <div class="input-hint">
+          Your API key is stored locally and never shared
+        </div>
+      </div>
+
+      <div class="setting-item" id="geminiSettings" style="display: none;">
+        <label for="geminiApiKey" class="setting-label">
+          <strong>Google Gemini API Key</strong>
+          <span class="setting-desc">Get your API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></span>
+        </label>
+        <div class="input-group">
+          <input 
+            type="password" 
+            id="geminiApiKey" 
+            class="input-field" 
+            placeholder="Enter your Gemini API key"
+            autocomplete="off"
+          >
+          <button id="toggleVisibilityGemini" class="toggle-btn" title="Show/Hide API Key">
             👁️
           </button>
         </div>
@@ -61,12 +100,23 @@
 
     <div class="status" id="status"></div>
 
-    <div class="info-section">
-      <h3>How to get your API key:</h3>
+    <div class="info-section" id="deepseekInfo">
+      <h3>How to get DeepSeek API key:</h3>
       <ol>
         <li>Visit <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></li>
         <li>Sign up or log in</li>
         <li>Create a new API key</li>
+        <li>Add credits to your account</li>
+        <li>Copy and paste it above</li>
+      </ol>
+    </div>
+
+    <div class="info-section" id="geminiInfo" style="display: none;">
+      <h3>How to get Gemini API key:</h3>
+      <ol>
+        <li>Visit <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
+        <li>Sign in with your Google account</li>
+        <li>Click "Create API Key"</li>
         <li>Copy and paste it above</li>
       </ol>
     </div>
