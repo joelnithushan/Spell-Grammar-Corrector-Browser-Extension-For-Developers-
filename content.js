@@ -1,5 +1,6 @@
 // Content script to check and highlight errors on the page
 let isChecking = false;
+let errorData = []; // Store errors with element references
 
 // Signal that content script is ready
 console.log('Spell & Grammar Checker content script loaded');
@@ -9,13 +10,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'checkPage') {
     checkPage(request.spellEnabled, request.grammarEnabled)
       .then(result => {
-        sendResponse({ success: true, errorCount: result.errorCount });
+        sendResponse({ 
+          success: true, 
+          errorCount: result.errorCount,
+          errors: result.errors 
+        });
       })
       .catch(error => {
         console.error('Error in checkPage:', error);
         sendResponse({ success: false, error: error.message });
       });
     return true; // Keep channel open for async response
+  }
+  
+  // Handle highlight request from popup
+  if (request.action === 'highlightError') {
+    highlightError(request.errorId);
+    sendResponse({ success: true });
+    return false;
+  }
+  
+  // Handle clear highlights
+  if (request.action === 'clearHighlights') {
+    clearHighlights();
+    sendResponse({ success: true });
+    return false;
   }
   
   // Handle ping to check if script is loaded
@@ -27,17 +46,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function checkPage(spellEnabled, grammarEnabled) {
   if (isChecking) {
-    return { errorCount: 0 };
+    return { errorCount: 0, errors: [] };
   }
 
   isChecking = true;
   
-  // Clear previous highlights
+  // Clear previous highlights and error data
   clearHighlights();
+  errorData = [];
 
   // Get all text content from the page
   const textElements = getTextElements();
-  let totalErrors = 0;
+  let allErrors = [];
+  let errorIdCounter = 0;
 
   // Process text in chunks to avoid overwhelming the API
   for (const element of textElements) {
@@ -54,8 +75,22 @@ async function checkPage(spellEnabled, grammarEnabled) {
       });
 
       if (errors.success && errors.result && errors.result.length > 0) {
-        highlightErrors(element, errors.result, text);
-        totalErrors += errors.result.length;
+        // Store errors with element reference and unique ID
+        errors.result.forEach(error => {
+          const errorId = errorIdCounter++;
+          const errorInfo = {
+            id: errorId,
+            word: error.word || '',
+            suggestions: error.suggestions || [],
+            type: error.type || 'spelling',
+            position: error.position !== undefined ? error.position : text.indexOf(error.word || ''),
+            element: element,
+            elementText: text,
+            context: getElementContext(element)
+          };
+          allErrors.push(errorInfo);
+          errorData.push(errorInfo);
+        });
       }
     } catch (error) {
       console.error('Error checking text:', error);
@@ -63,7 +98,48 @@ async function checkPage(spellEnabled, grammarEnabled) {
   }
 
   isChecking = false;
-  return { errorCount: totalErrors };
+  return { 
+    errorCount: allErrors.length, 
+    errors: allErrors.map(e => ({
+      id: e.id,
+      word: e.word,
+      suggestions: e.suggestions,
+      type: e.type,
+      position: e.position,
+      context: e.context
+    }))
+  };
+}
+
+function getElementContext(element) {
+  // Create a unique selector for the element
+  const path = [];
+  let current = element;
+  
+  while (current && current !== document.body) {
+    let selector = current.tagName.toLowerCase();
+    if (current.id) {
+      selector += '#' + current.id;
+      path.unshift(selector);
+      break;
+    } else {
+      let sibling = current;
+      let nth = 1;
+      while (sibling.previousElementSibling) {
+        sibling = sibling.previousElementSibling;
+        if (sibling.tagName === current.tagName) {
+          nth++;
+        }
+      }
+      if (nth > 1) {
+        selector += `:nth-of-type(${nth})`;
+      }
+      path.unshift(selector);
+    }
+    current = current.parentElement;
+  }
+  
+  return path.join(' > ');
 }
 
 function getTextElements() {
@@ -84,77 +160,60 @@ function getTextElements() {
   });
 }
 
-function highlightErrors(element, errors, originalText) {
-  if (!errors || errors.length === 0) return;
+function highlightError(errorId) {
+  // Find the error by ID
+  const error = errorData.find(e => e.id === errorId);
+  if (!error) {
+    console.error('Error not found:', errorId);
+    return;
+  }
+  
+  const element = error.element;
+  const text = error.elementText;
+  const word = error.word;
+  let position = error.position;
+  
+  // If position is not valid, try to find the word
+  if (position === undefined || position < 0) {
+    position = text.indexOf(word);
+  }
+  
+  // Clear any existing highlights first
+  clearHighlights();
   
   // Store original HTML if not already stored
   if (!element.dataset.originalHtml) {
     element.dataset.originalHtml = element.innerHTML;
   }
   
-  // Sort errors by position (descending) to avoid index shifting
-  const sortedErrors = [...errors].sort((a, b) => {
-    const posA = a.position !== undefined ? a.position : originalText.indexOf(a.word || '');
-    const posB = b.position !== undefined ? b.position : originalText.indexOf(b.word || '');
-    return posB - posA;
-  });
-  
-  let processedText = originalText;
-  const localHighlights = [];
-  
-  // Build highlighted text by replacing errors with markers
-  sortedErrors.forEach((error, index) => {
-    const word = error.word || '';
-    let position = error.position;
+  // Find and highlight the specific word
+  if (position >= 0 && position < text.length) {
+    const before = text.substring(0, position);
+    const wordText = text.substring(position, position + word.length);
+    const after = text.substring(position + word.length);
     
-    if (position === undefined || position < 0) {
-      position = processedText.indexOf(word);
-    }
-    
-    if (position >= 0 && position < processedText.length) {
-      const before = processedText.substring(0, position);
-      const wordText = processedText.substring(position, position + word.length);
-      const after = processedText.substring(position + word.length);
-      
-      // Create highlight element data
-      const highlightData = {
-        word: wordText,
-        suggestions: error.suggestions || [],
-        type: error.type || 'spelling',
-        position: position
-      };
-      
-      // Replace with marker
-      processedText = before + `__HIGHLIGHT_${index}__` + after;
-      localHighlights.push(highlightData);
-    }
-  });
-  
-  // Rebuild the text with highlights
-  if (localHighlights.length > 0) {
-    let finalHTML = processedText;
-    
-    // Replace markers with actual highlight spans
-    localHighlights.forEach((highlightData, index) => {
-      const marker = `__HIGHLIGHT_${index}__`;
-      const highlightSpan = `<span class="spell-error spell-error-${highlightData.type}" data-suggestions='${JSON.stringify(highlightData.suggestions)}' data-type="${highlightData.type}">${escapeHtml(highlightData.word)}</span>`;
-      finalHTML = finalHTML.replace(marker, highlightSpan);
-    });
+    // Create highlight span
+    const highlightSpan = `<span class="spell-error spell-error-${error.type}" data-error-id="${errorId}" data-suggestions='${JSON.stringify(error.suggestions)}' data-type="${error.type}">${escapeHtml(wordText)}</span>`;
+    const newHTML = escapeHtml(before) + highlightSpan + escapeHtml(after);
     
     // Replace element content
-    element.innerHTML = finalHTML;
-    
-    // Add click handlers to all highlights
-    element.querySelectorAll('.spell-error').forEach(highlight => {
-      highlight.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const suggestions = JSON.parse(highlight.dataset.suggestions || '[]');
-        showSuggestions(highlight, suggestions);
-      });
-    });
-    
+    element.innerHTML = newHTML;
     element.classList.add('spell-checked');
     element.dataset.hasErrors = 'true';
+    
+    // Scroll to element
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Add pulsing animation
+    setTimeout(() => {
+      const highlight = element.querySelector(`[data-error-id="${errorId}"]`);
+      if (highlight) {
+        highlight.classList.add('spell-error-highlighted');
+        setTimeout(() => {
+          highlight.classList.remove('spell-error-highlighted');
+        }, 2000);
+      }
+    }, 100);
   }
 }
 
@@ -222,15 +281,39 @@ function replaceWord(element, replacement) {
 }
 
 function clearHighlights() {
+  // Restore original HTML for all elements that were modified
+  document.querySelectorAll('[data-original-html]').forEach(el => {
+    if (el.dataset.originalHtml) {
+      el.innerHTML = el.dataset.originalHtml;
+      delete el.dataset.originalHtml;
+      el.classList.remove('spell-checked');
+      delete el.dataset.hasErrors;
+    }
+  });
+  
+  // Also check elements with spell-checked class
+  document.querySelectorAll('.spell-checked').forEach(el => {
+    if (el.dataset.originalHtml) {
+      el.innerHTML = el.dataset.originalHtml;
+      delete el.dataset.originalHtml;
+      el.classList.remove('spell-checked');
+      delete el.dataset.hasErrors;
+    }
+  });
+  
   // Remove all highlights
   document.querySelectorAll('.spell-error').forEach(el => {
-    el.classList.remove('spell-error');
+    const parent = el.parentElement;
+    if (parent && parent.dataset && parent.dataset.originalHtml) {
+      parent.innerHTML = parent.dataset.originalHtml;
+      delete parent.dataset.originalHtml;
+      parent.classList.remove('spell-checked');
+      delete parent.dataset.hasErrors;
+    }
   });
   
   document.querySelectorAll('.suggestions-popup').forEach(el => {
     el.remove();
   });
-  
-  highlights = [];
 }
 

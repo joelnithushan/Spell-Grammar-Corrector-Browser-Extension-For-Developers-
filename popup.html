@@ -51,7 +51,17 @@
       <button id="settingsBtn" class="btn btn-secondary">Settings</button>
     </div>
     
-    <div class="info">
+    <div class="errors-container" id="errorsContainer" style="display: none;">
+      <div class="errors-header">
+        <h3 id="errorsTitle">Found <span id="errorCount">0</span> issues</h3>
+        <button id="clearHighlightsBtn" class="btn-clear">Clear Highlights</button>
+      </div>
+      <div class="errors-list" id="errorsList">
+        <!-- Errors will be inserted here -->
+      </div>
+    </div>
+    
+    <div class="info" id="info">
       <p>Click "Check Page" to analyze the current page</p>
     </div>
   </div>

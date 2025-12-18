@@ -6,6 +6,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settingsBtn = document.getElementById('settingsBtn');
   const status = document.getElementById('status');
 
+  const errorsContainer = document.getElementById('errorsContainer');
+  const errorsList = document.getElementById('errorsList');
+  const errorCount = document.getElementById('errorCount');
+  const info = document.getElementById('info');
+  const clearHighlightsBtn = document.getElementById('clearHighlightsBtn');
+
   // Load saved toggle states
   const result = await chrome.storage.sync.get(['spellEnabled', 'grammarEnabled']);
   spellToggle.checked = result.spellEnabled !== false; // Default to true
@@ -69,18 +75,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Script injection note:', injectError.message);
       }
 
-      // Helper function to send message with promise
-      const sendMessagePromise = (tabId, message) => {
-        return new Promise((resolve, reject) => {
-          chrome.tabs.sendMessage(tabId, message, (response) => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
-            } else {
-              resolve(response);
-            }
-          });
-        });
-      };
 
       // Send check page message
       const response = await sendMessagePromise(tab.id, {
@@ -90,11 +84,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       if (response && response.success) {
-        showStatus(`Found ${response.errorCount || 0} issues`, 'success');
+        const errorCountValue = response.errorCount || 0;
+        showStatus(`Found ${errorCountValue} issues`, 'success');
+        
+        if (errorCountValue > 0 && response.errors) {
+          displayErrors(response.errors, tab.id);
+        } else {
+          hideErrors();
+        }
       } else if (response && response.error) {
         showStatus('Error: ' + response.error, 'error');
+        hideErrors();
       } else {
         showStatus('Check completed', 'success');
+        hideErrors();
       }
     } catch (error) {
       showStatus('Error: ' + error.message, 'error');
@@ -106,6 +109,96 @@ document.addEventListener('DOMContentLoaded', async () => {
   settingsBtn.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
+
+  // Clear highlights button
+  clearHighlightsBtn.addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    try {
+      await sendMessagePromise(tab.id, { action: 'clearHighlights' });
+    } catch (error) {
+      console.error('Error clearing highlights:', error);
+    }
+  });
+
+  function displayErrors(errors, tabId) {
+    errorsContainer.style.display = 'block';
+    info.style.display = 'none';
+    errorCount.textContent = errors.length;
+    errorsList.innerHTML = '';
+
+    errors.forEach(error => {
+      const errorItem = document.createElement('div');
+      errorItem.className = `error-item ${error.type}`;
+      errorItem.dataset.errorId = error.id;
+
+      const wordDiv = document.createElement('div');
+      wordDiv.className = 'error-word';
+      wordDiv.innerHTML = `
+        <span class="word-text">"${escapeHtml(error.word)}"</span>
+        <span class="error-type">${error.type}</span>
+      `;
+
+      const suggestionsDiv = document.createElement('div');
+      suggestionsDiv.className = 'error-suggestions';
+      
+      if (error.suggestions && error.suggestions.length > 0) {
+        error.suggestions.forEach(suggestion => {
+          const badge = document.createElement('span');
+          badge.className = 'suggestion-badge';
+          badge.textContent = suggestion;
+          badge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // TODO: Implement replace functionality if needed
+          });
+          suggestionsDiv.appendChild(badge);
+        });
+      } else {
+        const noSuggestions = document.createElement('span');
+        noSuggestions.textContent = 'No suggestions available';
+        noSuggestions.style.color = '#a0aec0';
+        noSuggestions.style.fontSize = '11px';
+        suggestionsDiv.appendChild(noSuggestions);
+      }
+
+      const contextDiv = document.createElement('div');
+      contextDiv.className = 'error-context';
+      contextDiv.textContent = error.context || '';
+
+      errorItem.appendChild(wordDiv);
+      errorItem.appendChild(suggestionsDiv);
+      errorItem.appendChild(contextDiv);
+
+      // Click to highlight on page
+      errorItem.addEventListener('click', async () => {
+        try {
+          await sendMessagePromise(tabId, {
+            action: 'highlightError',
+            errorId: error.id
+          });
+          // Highlight the clicked item
+          document.querySelectorAll('.error-item').forEach(item => {
+            item.style.background = '#f7fafc';
+          });
+          errorItem.style.background = '#dbeafe';
+        } catch (error) {
+          console.error('Error highlighting:', error);
+        }
+      });
+
+      errorsList.appendChild(errorItem);
+    });
+  }
+
+  function hideErrors() {
+    errorsContainer.style.display = 'none';
+    info.style.display = 'block';
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
 
   function updateStatus() {
     const enabled = spellToggle.checked || grammarToggle.checked;
@@ -128,6 +221,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       icon.textContent = '✓';
     }
+  }
+
+  // Helper function to send message with promise
+  function sendMessagePromise(tabId, message) {
+    return new Promise((resolve, reject) => {
+      chrome.tabs.sendMessage(tabId, message, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(response);
+        }
+      });
+    });
   }
 
   updateStatus();

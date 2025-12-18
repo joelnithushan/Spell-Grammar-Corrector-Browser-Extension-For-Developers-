@@ -212,3 +212,134 @@ input:checked + .slider:before {
   line-height: 1.4;
 }
 
+/* Errors Container */
+.errors-container {
+  margin-top: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+  border-top: 2px solid #f0f0f0;
+  padding-top: 16px;
+}
+
+.errors-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.errors-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.errors-header h3 span {
+  color: #667eea;
+}
+
+.btn-clear {
+  padding: 4px 12px;
+  font-size: 11px;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-clear:hover {
+  background: #fecaca;
+}
+
+.errors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.error-item {
+  padding: 12px;
+  background: #f7fafc;
+  border-radius: 8px;
+  border-left: 3px solid #cbd5e0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.error-item:hover {
+  background: #edf2f7;
+  transform: translateX(2px);
+}
+
+.error-item.spelling {
+  border-left-color: #ef4444;
+}
+
+.error-item.grammar {
+  border-left-color: #f59e0b;
+}
+
+.error-word {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.error-word .word-text {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.error-item.grammar .error-word .word-text {
+  color: #f59e0b;
+}
+
+.error-type {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #e2e8f0;
+  color: #4a5568;
+  margin-left: 6px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.error-suggestions {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.suggestion-badge {
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.suggestion-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+}
+
+.error-context {
+  font-size: 11px;
+  color: #718096;
+  margin-top: 4px;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

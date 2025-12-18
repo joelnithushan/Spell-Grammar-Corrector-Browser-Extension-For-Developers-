@@ -76,3 +76,20 @@
   transform: translateX(2px);
 }
 
+/* Highlighted error animation */
+.spell-error-highlighted {
+  animation: pulse-highlight 2s ease-in-out;
+  box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+}
+
+@keyframes pulse-highlight {
+  0%, 100% {
+    background: #fef2f2;
+    transform: scale(1);
+  }
+  50% {
+    background: #fee2e2;
+    transform: scale(1.05);
+  }
+}
+
