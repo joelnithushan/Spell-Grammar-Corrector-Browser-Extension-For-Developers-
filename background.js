@@ -130,6 +130,17 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
         // Ignore if URL not available
       }
       
+      console.log('Making OpenRouter API request');
+      console.log('API key length:', apiKey.length);
+      console.log('API key starts with sk-:', apiKey.startsWith('sk-'));
+      console.log('API key preview:', apiKey.substring(0, 10) + '...');
+      console.log('Request headers:', {
+        'Authorization': `Bearer ${apiKey.substring(0, 10)}...`,
+        'Content-Type': headers['Content-Type'],
+        'HTTP-Referer': headers['HTTP-Referer'] || 'not set',
+        'X-Title': headers['X-Title'] || 'not set'
+      });
+      
       response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: headers,
@@ -145,6 +156,8 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
           max_tokens: 4000
         })
       });
+      
+      console.log('OpenRouter API response status:', response.status, response.statusText);
     }
 
     if (!response.ok) {
