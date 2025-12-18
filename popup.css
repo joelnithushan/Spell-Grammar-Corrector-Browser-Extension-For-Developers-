@@ -131,10 +131,12 @@ input:checked + .slider:before {
 .actions {
   padding: 16px 20px;
   border-bottom: 1px solid #e5e5e5;
+  display: flex;
+  gap: 8px;
 }
 
 .btn {
-  width: 100%;
+  flex: 1;
   padding: 12px 16px;
   border: none;
   border-radius: 6px;
@@ -156,6 +158,22 @@ input:checked + .slider:before {
 
 .btn-primary:active {
   background: #4a5bc4;
+}
+
+.btn-test {
+  background: #e2e8f0;
+  color: #2d3748;
+  flex: 0 0 auto;
+  padding: 12px 20px;
+  font-size: 12px;
+}
+
+.btn-test:hover {
+  background: #cbd5e0;
+}
+
+.btn-test:active {
+  background: #a0aec0;
 }
 
 .status {

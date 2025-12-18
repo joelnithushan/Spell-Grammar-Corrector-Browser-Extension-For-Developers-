@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusText = document.getElementById('statusText');
   const settingsLink = document.getElementById('settingsLink');
   const controls = document.getElementById('controls');
+  const testApiBtn = document.getElementById('testApiBtn');
 
   // Load saved toggle states
   const result = await chrome.storage.sync.get(['spellEnabled', 'grammarEnabled']);
@@ -133,6 +134,74 @@ document.addEventListener('DOMContentLoaded', async () => {
   settingsLink.addEventListener('click', (e) => {
     e.preventDefault();
     chrome.runtime.openOptionsPage();
+  });
+
+  // Test API button
+  testApiBtn.addEventListener('click', async () => {
+    const settings = await chrome.storage.sync.get(['apiKey', 'geminiApiKey', 'apiProvider']);
+    const apiProvider = settings.apiProvider || 'deepseek';
+    const apiKey = apiProvider === 'deepseek' ? settings.apiKey : settings.geminiApiKey;
+    
+    if (!apiKey) {
+      status.style.display = 'block';
+      status.style.background = '#fef2f2';
+      statusText.textContent = 'API key not configured';
+      statusText.style.color = '#991b1b';
+      setTimeout(() => {
+        status.style.display = 'none';
+      }, 3000);
+      return;
+    }
+
+    // Show testing status
+    status.style.display = 'block';
+    status.style.background = '#eff6ff';
+    statusText.textContent = 'Testing API connection...';
+    statusText.style.color = '#1e40af';
+    testApiBtn.disabled = true;
+
+    try {
+      let response;
+      if (apiProvider === 'gemini') {
+        // Test Gemini API
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+      } else {
+        // Test DeepSeek/OpenRouter API
+        response = await fetch('https://openrouter.ai/api/v1/models', {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+
+      if (response.ok) {
+        status.style.background = '#f0fdf4';
+        statusText.textContent = `✓ ${apiProvider === 'gemini' ? 'Gemini' : 'DeepSeek'} API connected successfully!`;
+        statusText.style.color = '#166534';
+      } else {
+        const error = await response.json().catch(() => ({}));
+        status.style.background = '#fef2f2';
+        statusText.textContent = `✗ API test failed: ${error.error?.message || 'Invalid API key'}`;
+        statusText.style.color = '#991b1b';
+      }
+    } catch (error) {
+      status.style.background = '#fef2f2';
+      statusText.textContent = `✗ Connection error: ${error.message}`;
+      statusText.style.color = '#991b1b';
+    } finally {
+      testApiBtn.disabled = false;
+      setTimeout(() => {
+        if (status.style.display === 'block') {
+          status.style.display = 'none';
+        }
+      }, 5000);
+    }
   });
 
   function displayErrors(errors, tabId) {
