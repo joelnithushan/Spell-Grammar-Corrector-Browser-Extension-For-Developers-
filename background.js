@@ -35,45 +35,26 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
   console.log('API key preview (first 15 chars):', apiKey.substring(0, 15) + '...');
 
   // Build prompt based on enabled features
-  let prompt = 'You are an expert English grammar and spelling analyzer designed for a browser extension.\n\n';
-  prompt += 'Your task:\n';
-  prompt += '- Analyze web page text content provided by the user.\n';
+  let prompt = 'You are an expert English grammar and spelling analyzer. Your ONLY job is to find and report ALL spelling and grammar errors in the provided text.\n\n';
+  
+  prompt += 'CRITICAL INSTRUCTIONS:\n';
+  prompt += '1. You MUST find and report EVERY spelling and grammar error in the text.\n';
+  prompt += '2. Do NOT skip any errors - be thorough and comprehensive.\n';
+  prompt += '3. If the text contains obvious mistakes like "recieved" (should be "received"), "messege" (should be "message"), "they was" (should be "they were"), you MUST report them.\n';
+  prompt += '4. Return an empty array [] ONLY if there are genuinely NO errors in the text.\n\n';
   
   const checks = [];
   if (spellEnabled) checks.push('spelling mistakes');
   if (grammarEnabled) checks.push('grammar issues');
-  prompt += `- Identify ONLY ${checks.join(' and ')}.\n`;
+  prompt += `You are checking for: ${checks.join(' and ')}.\n\n`;
   
-  prompt += '- Do NOT rewrite the text.\n';
-  prompt += '- Do NOT change formatting.\n';
-  prompt += '- Do NOT remove code blocks, HTML tags, or developer comments.\n\n';
+  prompt += 'Rules:\n';
+  prompt += '- Find ALL errors, not just some.\n';
+  prompt += '- Report each error exactly as it appears in the text.\n';
+  prompt += '- Ignore: code syntax, variable names, function names, file paths, URLs, JSON keys, console logs, HTML tags, CSS properties, JavaScript code.\n';
+  prompt += '- Focus ONLY on human-readable text content.\n\n';
   
-  prompt += 'Important rules:\n';
-  prompt += '1. Never modify the original content.\n';
-  prompt += '2. Never auto-correct anything.\n';
-  prompt += '3. Only report issues.\n';
-  prompt += '4. Every issue must include:\n';
-  prompt += '   - Exact original text (word or phrase as it appears)\n';
-  prompt += '   - Issue type ("spelling" or "grammar")\n';
-  prompt += '   - Character start index (position from start of text, starting at 0)\n';
-  prompt += '   - Character end index (position where the error ends)\n';
-  prompt += '   - One or more suggested alternatives (array of strings, ordered by best match first)\n';
-  prompt += '5. Ignore:\n';
-  prompt += '   - Code syntax\n';
-  prompt += '   - Variable names\n';
-  prompt += '   - Function names\n';
-  prompt += '   - File paths\n';
-  prompt += '   - URLs\n';
-  prompt += '   - JSON keys\n';
-  prompt += '   - Console logs\n';
-  prompt += '   - HTML tags and attributes\n';
-  prompt += '   - CSS properties\n';
-  prompt += '   - JavaScript code blocks\n';
-  prompt += '6. Focus only on visible human-readable content.\n';
-  prompt += '7. Be precise and concise.\n';
-  prompt += '8. Output must be valid JSON only. No extra text, no markdown, no explanations.\n\n';
-  
-  prompt += 'Output format (JSON array):\n';
+  prompt += 'Output format (JSON array only, no other text):\n';
   prompt += '[{\n';
   prompt += '  "word": "exact text as it appears",\n';
   prompt += '  "position": start_index,\n';
@@ -82,14 +63,14 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
   prompt += '  "suggestions": ["suggestion1", "suggestion2", ...]\n';
   prompt += '}, ...]\n\n';
   
-  prompt += 'Example:\n';
-  prompt += '[{"word": "recieved", "position": 5, "endPosition": 13, "type": "spelling", "suggestions": ["received"]}, {"word": "they was", "position": 45, "endPosition": 53, "type": "grammar", "suggestions": ["they were", "they are"]}]\n\n';
+  prompt += 'Example for text "I recieved your messege":\n';
+  prompt += '[{"word": "recieved", "position": 2, "endPosition": 10, "type": "spelling", "suggestions": ["received"]}, {"word": "messege", "position": 16, "endPosition": 23, "type": "spelling", "suggestions": ["message"]}]\n\n';
   
-  prompt += 'Text to analyze:\n';
+  prompt += 'Text to analyze (find ALL errors):\n';
   prompt += '---\n';
   prompt += text;
   prompt += '\n---\n\n';
-  prompt += 'Return ONLY the JSON array with all errors found. No other text:';
+  prompt += 'Return ONLY a valid JSON array. If there are errors, return them. If there are NO errors, return []. No explanations, no markdown, no other text:';
 
   try {
     let response;
@@ -202,52 +183,81 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
     
     // Try to extract JSON from the response
     let errors = [];
-    console.log('Raw API response content:', content.substring(0, 500));
+    console.log('Raw API response content length:', content.length);
+    console.log('Raw API response content (first 1000 chars):', content.substring(0, 1000));
+    console.log('Raw API response content (last 500 chars):', content.substring(Math.max(0, content.length - 500)));
     
     try {
-      // Look for JSON array in the response (more flexible matching)
+      // First, try to find JSON array - use non-greedy match but allow for large arrays
       let jsonMatch = content.match(/\[[\s\S]*?\]/);
       
-      // If no array found, try to find JSON object array
-      if (!jsonMatch) {
-        jsonMatch = content.match(/\{[\s\S]*?\}/);
-        if (jsonMatch && jsonMatch[0].includes('[')) {
+      // If no array found with non-greedy, try greedy match
+      if (!jsonMatch || jsonMatch[0].length < 10) {
+        jsonMatch = content.match(/\[[\s\S]*\]/);
+      }
+      
+      // If still no array found, try to find JSON object array
+      if (!jsonMatch || jsonMatch[0].length < 10) {
+        const objMatch = content.match(/\{[\s\S]*?\}/);
+        if (objMatch && objMatch[0].includes('[')) {
           // Extract array from object
-          const arrayMatch = jsonMatch[0].match(/\[[\s\S]*?\]/);
+          const arrayMatch = objMatch[0].match(/\[[\s\S]*?\]/);
           if (arrayMatch) jsonMatch = arrayMatch;
         }
       }
       
-      if (jsonMatch) {
-        errors = JSON.parse(jsonMatch[0]);
-        console.log('Parsed errors:', errors.length);
-      } else {
-        // Fallback: try to parse the entire content
+      if (jsonMatch && jsonMatch[0].length >= 2) {
         try {
-          errors = JSON.parse(content);
-          console.log('Parsed entire content as JSON');
+          errors = JSON.parse(jsonMatch[0]);
+          console.log('Successfully parsed JSON array with', errors.length, 'errors');
+        } catch (parseErr) {
+          console.error('Failed to parse matched JSON:', parseErr);
+          console.error('Matched content:', jsonMatch[0].substring(0, 500));
+        }
+      }
+      
+      // If still no errors, try to parse the entire content
+      if (!Array.isArray(errors) || errors.length === 0) {
+        try {
+          const parsed = JSON.parse(content.trim());
+          if (Array.isArray(parsed)) {
+            errors = parsed;
+            console.log('Parsed entire content as JSON array with', errors.length, 'errors');
+          }
         } catch (e) {
           // Try to extract JSON from markdown code blocks
           const codeBlockMatch = content.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
           if (codeBlockMatch) {
             errors = JSON.parse(codeBlockMatch[1]);
-            console.log('Extracted JSON from code block');
+            console.log('Extracted JSON from code block with', errors.length, 'errors');
           } else {
-            throw new Error('No valid JSON found in response');
+            // Try multiline code block
+            const multilineMatch = content.match(/```[\s\S]*?(\[[\s\S]*?\])\s*```/);
+            if (multilineMatch) {
+              errors = JSON.parse(multilineMatch[1]);
+              console.log('Extracted JSON from multiline code block with', errors.length, 'errors');
+            } else {
+              console.warn('No valid JSON array found in response');
+              console.warn('Full response content:', content);
+            }
           }
         }
       }
       
       // Validate errors array
       if (!Array.isArray(errors)) {
-        console.error('Parsed result is not an array:', errors);
+        console.error('Parsed result is not an array:', typeof errors, errors);
         errors = [];
       } else {
-        console.log('Successfully parsed', errors.length, 'errors');
+        console.log('Final result: Successfully parsed', errors.length, 'errors');
+        if (errors.length > 0) {
+          console.log('First error example:', errors[0]);
+        }
       }
     } catch (parseError) {
       console.error('Failed to parse API response:', parseError);
-      console.error('Response content (first 1000 chars):', content.substring(0, 1000));
+      console.error('Response content (first 2000 chars):', content.substring(0, 2000));
+      console.error('Response content (last 500 chars):', content.substring(Math.max(0, content.length - 500)));
       // Return empty array if parsing fails
       errors = [];
     }
