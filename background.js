@@ -13,14 +13,25 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
   const apiProvider = result.apiProvider || 'deepseek';
   let apiKey = apiProvider === 'deepseek' ? result.apiKey : result.geminiApiKey;
 
-  if (!apiKey || (apiKey = apiKey.trim()) === '') {
+  // Trim and validate API key
+  if (!apiKey) {
     throw new Error('API key not configured. Please set your API key in settings.');
   }
   
-  // Validate API key format
+  apiKey = apiKey.trim();
+  
+  if (apiKey === '') {
+    throw new Error('API key is empty. Please set your API key in settings.');
+  }
+  
+  // Validate API key format for OpenRouter
   if (apiProvider === 'deepseek' && !apiKey.startsWith('sk-')) {
     throw new Error('Invalid API key format. OpenRouter API keys must start with "sk-". Please check your API key in settings.');
   }
+  
+  console.log('Using API provider:', apiProvider);
+  console.log('API key length:', apiKey.length);
+  console.log('API key starts with sk-:', apiKey.startsWith('sk-'));
 
   // Build prompt based on enabled features
   let prompt = 'You are an expert English grammar and spelling analyzer designed for a browser extension.\n\n';
