@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spell & Grammar Checker</title>
+  <title>Grammar Checker</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Spell & Grammar Checker</h1>
-      <p class="subtitle">For Developers</p>
+      <h1>Grammar Checker</h1>
+      <a href="#" id="settingsLink" class="settings-link">Settings</a>
     </header>
     
-    <div class="controls">
+    <div class="controls" id="controls">
       <div class="toggle-group">
         <label class="toggle-label">
           <span class="toggle-text">
@@ -21,7 +21,7 @@
             <span class="toggle-desc">Check spelling errors</span>
           </span>
           <label class="switch">
-            <input type="checkbox" id="spellToggle">
+            <input type="checkbox" id="spellToggle" checked>
             <span class="slider"></span>
           </label>
         </label>
@@ -34,27 +34,24 @@
             <span class="toggle-desc">Check grammar errors</span>
           </span>
           <label class="switch">
-            <input type="checkbox" id="grammarToggle">
+            <input type="checkbox" id="grammarToggle" checked>
             <span class="slider"></span>
           </label>
         </label>
       </div>
     </div>
     
-    <div class="status" id="status">
-      <span class="status-icon">✓</span>
-      <span class="status-text">Ready</span>
+    <div class="actions">
+      <button id="checkBtn" class="btn btn-primary">Analyze Page</button>
     </div>
     
-    <div class="actions">
-      <button id="checkBtn" class="btn btn-primary">Check Page</button>
-      <button id="settingsBtn" class="btn btn-secondary">Settings</button>
+    <div class="status" id="status" style="display: none;">
+      <span class="status-text" id="statusText">Analyzing...</span>
     </div>
     
     <div class="errors-container" id="errorsContainer" style="display: none;">
-      <div class="errors-header">
-        <h3 id="errorsTitle">Found <span id="errorCount">0</span> issues</h3>
-        <button id="clearHighlightsBtn" class="btn-clear">Clear Highlights</button>
+      <div class="errors-summary">
+        <span class="summary-text">Found <span id="errorCount">0</span> issues</span>
       </div>
       <div class="errors-list" id="errorsList">
         <!-- Errors will be inserted here -->
@@ -62,7 +59,7 @@
     </div>
     
     <div class="info" id="info">
-      <p>Click "Check Page" to analyze the current page</p>
+      <p>Click "Analyze Page" to check spelling and grammar</p>
     </div>
   </div>
   

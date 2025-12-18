@@ -10,7 +10,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const errorsList = document.getElementById('errorsList');
   const errorCount = document.getElementById('errorCount');
   const info = document.getElementById('info');
-  const clearHighlightsBtn = document.getElementById('clearHighlightsBtn');
+  const status = document.getElementById('status');
+  const statusText = document.getElementById('statusText');
+  const settingsLink = document.getElementById('settingsLink');
+  const controls = document.getElementById('controls');
 
   // Load saved toggle states
   const result = await chrome.storage.sync.get(['spellEnabled', 'grammarEnabled']);
@@ -105,19 +108,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Settings button
-  settingsBtn.addEventListener('click', () => {
+  // Settings link
+  settingsLink.addEventListener('click', (e) => {
+    e.preventDefault();
     chrome.runtime.openOptionsPage();
-  });
-
-  // Clear highlights button
-  clearHighlightsBtn.addEventListener('click', async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    try {
-      await sendMessagePromise(tab.id, { action: 'clearHighlights' });
-    } catch (error) {
-      console.error('Error clearing highlights:', error);
-    }
   });
 
   function displayErrors(errors, tabId) {
@@ -218,6 +212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function hideErrors() {
     errorsContainer.style.display = 'none';
+    controls.style.display = 'block';
     info.style.display = 'block';
   }
 
@@ -227,28 +222,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return div.innerHTML;
   }
 
-  function updateStatus() {
-    const enabled = spellToggle.checked || grammarToggle.checked;
-    if (enabled) {
-      showStatus('Ready', 'success');
-    } else {
-      showStatus('Enable at least one option', 'error');
-    }
-  }
-
-  function showStatus(message, type = 'success') {
-    status.className = `status ${type}`;
-    status.querySelector('.status-text').textContent = message;
-    
-    const icon = status.querySelector('.status-icon');
-    if (type === 'error') {
-      icon.textContent = '✗';
-    } else if (type === 'info') {
-      icon.textContent = '⏳';
-    } else {
-      icon.textContent = '✓';
-    }
-  }
 
   // Helper function to send message with promise
   function sendMessagePromise(tabId, message) {
