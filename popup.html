@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spell & Grammar Checker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Grammar Checker</h1>
+      <a href="#" id="settingsLink" class="settings-link">Settings</a>
+    </header>
+    
+    <div class="controls" id="controls">
+      <div class="toggle-group">
+        <label class="toggle">
+          <input type="checkbox" id="spellToggle" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">Spell Check</span>
+        </label>
+        <p class="toggle-description">Check spelling errors</p>
+      </div>
+      
+      <div class="toggle-group">
+        <label class="toggle">
+          <input type="checkbox" id="grammarToggle" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">Grammar Check</span>
+        </label>
+        <p class="toggle-description">Check grammar errors</p>
+      </div>
+      
+      <div class="button-group">
+        <button id="analyzeBtn" class="btn btn-primary">Analyze Page</button>
+        <button id="testApiBtn" class="btn btn-secondary">Test API</button>
+      </div>
+    </div>
+    
+    <div id="status" class="status" style="display: none;">
+      <p id="statusText"></p>
+    </div>
+    
+    <div id="errorsContainer" class="errors-container" style="display: none;">
+      <div class="errors-header">
+        <h2>Found <span id="errorCount">0</span> errors</h2>
+      </div>
+      <div id="errorsList" class="errors-list"></div>
+    </div>
+    
+    <div id="info" class="info">
+      <p>Enable spell or grammar check, then click "Analyze Page" to check the current page.</p>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
+

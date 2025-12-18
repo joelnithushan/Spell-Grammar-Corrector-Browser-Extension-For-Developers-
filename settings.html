@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Spell & Grammar Checker</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Settings</h1>
+      <p class="subtitle">Configure your API keys and preferences</p>
+    </header>
+    
+    <div class="settings-section">
+      <h2>API Provider</h2>
+      <div class="radio-group">
+        <label class="radio">
+          <input type="radio" name="provider" value="deepseek" id="providerDeepseek" checked>
+          <span>DeepSeek (via OpenRouter)</span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="provider" value="gemini" id="providerGemini">
+          <span>Google Gemini</span>
+        </label>
+      </div>
+    </div>
+    
+    <div class="settings-section" id="deepseekSection">
+      <h2>DeepSeek API Key</h2>
+      <p class="help-text">Get your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></p>
+      <div class="input-group">
+        <input type="password" id="deepseekApiKey" placeholder="sk-...">
+        <button type="button" id="toggleDeepseek" class="toggle-visibility">👁️</button>
+      </div>
+    </div>
+    
+    <div class="settings-section" id="geminiSection" style="display: none;">
+      <h2>Gemini API Key</h2>
+      <p class="help-text">Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></p>
+      <div class="input-group">
+        <input type="password" id="geminiApiKey" placeholder="AIza...">
+        <button type="button" id="toggleGemini" class="toggle-visibility">👁️</button>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <h2>Default Preferences</h2>
+      <label class="checkbox">
+        <input type="checkbox" id="defaultSpell" checked>
+        <span>Enable spell check by default</span>
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" id="defaultGrammar" checked>
+        <span>Enable grammar check by default</span>
+      </label>
+    </div>
+    
+    <div class="button-group">
+      <button id="saveBtn" class="btn btn-primary">Save Settings</button>
+      <button id="testBtn" class="btn btn-secondary">Test API Key</button>
+    </div>
+    
+    <div id="status" class="status" style="display: none;">
+      <p id="statusText"></p>
+    </div>
+  </div>
+  
+  <script src="settings.js"></script>
+</body>
+</html>
+
