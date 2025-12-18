@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const spellToggle = document.getElementById('spellToggle');
   const grammarToggle = document.getElementById('grammarToggle');
   const checkBtn = document.getElementById('checkBtn');
-  const settingsBtn = document.getElementById('settingsBtn');
   const status = document.getElementById('status');
 
   const errorsContainer = document.getElementById('errorsContainer');
@@ -23,12 +22,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Save toggle states
   spellToggle.addEventListener('change', async () => {
     await chrome.storage.sync.set({ spellEnabled: spellToggle.checked });
-    updateStatus();
   });
 
   grammarToggle.addEventListener('change', async () => {
     await chrome.storage.sync.set({ grammarEnabled: grammarToggle.checked });
-    updateStatus();
   });
 
   // Check page button
@@ -43,7 +40,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check if API key is set
     const settings = await chrome.storage.sync.get(['apiKey']);
     if (!settings.apiKey) {
-      showStatus('API key not set. Please configure in Settings.', 'error');
+      status.style.display = 'block';
+      status.style.background = '#fef2f2';
+      statusText.textContent = 'API key not set. Please configure in Settings.';
+      statusText.style.color = '#991b1b';
       setTimeout(() => {
         chrome.runtime.openOptionsPage();
       }, 2000);
