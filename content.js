@@ -57,58 +57,120 @@ async function checkPage(spellEnabled, grammarEnabled) {
 
   // Get all text content from the page
   const textElements = getTextElements();
-  let allErrors = [];
-  let errorIdCounter = 0;
-
-  // Process text in chunks to avoid overwhelming the API
-  for (const element of textElements) {
+  
+  // Build a map of element to its text and position in the full text
+  const elementMap = [];
+  let fullText = '';
+  let currentPosition = 0;
+  
+  textElements.forEach(element => {
     const text = element.textContent.trim();
-    if (text.length < 3) continue; // Skip very short texts
+    if (text.length < 3) return; // Skip very short texts
+    
+    const startPosition = currentPosition;
+    const endPosition = currentPosition + text.length;
+    
+    elementMap.push({
+      element: element,
+      text: text,
+      startPosition: startPosition,
+      endPosition: endPosition,
+      context: getElementContext(element)
+    });
+    
+    // Add text with separator to track element boundaries
+    fullText += text + '\n\n';
+    currentPosition = endPosition + 2; // +2 for the \n\n separator
+  });
 
-    try {
-      // Send to background script for API call
-      const errors = await chrome.runtime.sendMessage({
-        action: 'checkText',
-        text: text,
-        spellEnabled: spellEnabled,
-        grammarEnabled: grammarEnabled
-      });
-
-      if (errors.success && errors.result && errors.result.length > 0) {
-        // Store errors with element reference and unique ID
-        errors.result.forEach(error => {
-          const errorId = errorIdCounter++;
-          const errorInfo = {
-            id: errorId,
-            word: error.word || '',
-            suggestions: error.suggestions || [],
-            type: error.type || 'spelling',
-            position: error.position !== undefined ? error.position : text.indexOf(error.word || ''),
-            element: element,
-            elementText: text,
-            context: getElementContext(element)
-          };
-          allErrors.push(errorInfo);
-          errorData.push(errorInfo);
-        });
-      }
-    } catch (error) {
-      console.error('Error checking text:', error);
-    }
+  if (fullText.trim().length === 0) {
+    isChecking = false;
+    return { errorCount: 0, errors: [] };
   }
 
-  isChecking = false;
-  return { 
-    errorCount: allErrors.length, 
-    errors: allErrors.map(e => ({
-      id: e.id,
-      word: e.word,
-      suggestions: e.suggestions,
-      type: e.type,
-      position: e.position,
-      context: e.context
-    }))
-  };
+  try {
+    // Send entire page text in one API request
+    const response = await chrome.runtime.sendMessage({
+      action: 'checkText',
+      text: fullText.trim(),
+      spellEnabled: spellEnabled,
+      grammarEnabled: grammarEnabled
+    });
+
+    if (!response.success || !response.result || response.result.length === 0) {
+      isChecking = false;
+      return { errorCount: 0, errors: [] };
+    }
+
+    // Map errors back to their elements
+    let allErrors = [];
+    let errorIdCounter = 0;
+
+    response.result.forEach(error => {
+      const errorPosition = error.position !== undefined ? error.position : -1;
+      
+      // Find which element contains this error
+      const elementInfo = elementMap.find(info => 
+        errorPosition >= info.startPosition && errorPosition < info.endPosition
+      );
+
+      if (elementInfo) {
+        // Calculate position within the element's text
+        const positionInElement = errorPosition - elementInfo.startPosition;
+        
+        const errorId = errorIdCounter++;
+        const errorInfo = {
+          id: errorId,
+          word: error.word || '',
+          suggestions: error.suggestions || [],
+          type: error.type || 'spelling',
+          position: positionInElement,
+          element: elementInfo.element,
+          elementText: elementInfo.text,
+          context: elementInfo.context
+        };
+        allErrors.push(errorInfo);
+        errorData.push(errorInfo);
+      } else {
+        // If position not found, try to find by word in element text
+        elementMap.forEach(elementInfo => {
+          const wordIndex = elementInfo.text.indexOf(error.word || '');
+          if (wordIndex >= 0) {
+            const errorId = errorIdCounter++;
+            const errorInfo = {
+              id: errorId,
+              word: error.word || '',
+              suggestions: error.suggestions || [],
+              type: error.type || 'spelling',
+              position: wordIndex,
+              element: elementInfo.element,
+              elementText: elementInfo.text,
+              context: elementInfo.context
+            };
+            allErrors.push(errorInfo);
+            errorData.push(errorInfo);
+          }
+        });
+      }
+    });
+
+    isChecking = false;
+    return { 
+      errorCount: allErrors.length, 
+      errors: allErrors.map(e => ({
+        id: e.id,
+        word: e.word,
+        suggestions: e.suggestions,
+        type: e.type,
+        position: e.position,
+        context: e.context
+      }))
+    };
+  } catch (error) {
+    console.error('Error checking page:', error);
+    isChecking = false;
+    return { errorCount: 0, errors: [] };
+  }
 }
 
 function getElementContext(element) {

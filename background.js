@@ -17,19 +17,25 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
   }
 
   // Build prompt based on enabled features
-  let prompt = 'Analyze the following text and identify ';
+  let prompt = 'You are a professional spell and grammar checker. Analyze the following text and identify ALL ';
   const checks = [];
   if (spellEnabled) checks.push('spelling errors');
   if (grammarEnabled) checks.push('grammar errors');
   prompt += checks.join(' and ') + '.\n\n';
-  prompt += 'For each error, provide:\n';
-  prompt += '1. The incorrect word/phrase\n';
-  prompt += '2. The position (character index)\n';
-  prompt += '3. Suggested corrections (at least 2-3 alternatives)\n';
-  prompt += '4. Type: "spelling" or "grammar"\n\n';
-  prompt += 'Return the response as a JSON array of objects with this structure:\n';
-  prompt += '[{"word": "incorrect word", "position": 0, "suggestions": ["suggestion1", "suggestion2"], "type": "spelling"}]\n\n';
-  prompt += 'Text to analyze:\n' + text;
+  prompt += 'IMPORTANT: Check the ENTIRE text thoroughly. Find ALL errors.\n\n';
+  prompt += 'For each error found, provide:\n';
+  prompt += '1. The incorrect word/phrase (exact text as it appears)\n';
+  prompt += '2. The position (character index from the start of the text, starting at 0)\n';
+  prompt += '3. Suggested corrections (provide 2-4 alternatives, ordered by best match first)\n';
+  prompt += '4. Type: "spelling" for spelling errors, "grammar" for grammar errors\n\n';
+  prompt += 'Return ONLY a valid JSON array. No explanations, no markdown, just the JSON array.\n';
+  prompt += 'Example format:\n';
+  prompt += '[{"word": "recieved", "position": 5, "suggestions": ["received", "receive"], "type": "spelling"}, {"word": "they was", "position": 45, "suggestions": ["they were", "they are"], "type": "grammar"}]\n\n';
+  prompt += 'Text to analyze:\n';
+  prompt += '---\n';
+  prompt += text;
+  prompt += '\n---\n';
+  prompt += 'Now analyze this text and return the JSON array with all errors found:';
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -48,8 +54,8 @@ async function checkTextWithAPI(text, spellEnabled, grammarEnabled) {
             content: prompt
           }
         ],
-        temperature: 0.3,
-        max_tokens: 2000
+        temperature: 0.2,
+        max_tokens: 4000
       })
     });
 
