@@ -39,8 +39,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Check if API key is set
-    const settings = await chrome.storage.sync.get(['apiKey']);
-    if (!settings.apiKey) {
+    const settings = await chrome.storage.sync.get(['apiKey', 'geminiApiKey', 'apiProvider']);
+    const apiProvider = settings.apiProvider || 'deepseek';
+    const apiKey = apiProvider === 'deepseek' ? settings.apiKey : settings.geminiApiKey;
+    
+    if (!apiKey) {
       status.style.display = 'block';
       status.style.background = '#fef2f2';
       statusText.textContent = 'API key not set. Please configure in Settings.';
