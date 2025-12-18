@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Spell & Grammar Checker</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>⚙️ Settings</h1>
+      <p class="subtitle">Configure your API key and preferences</p>
+    </header>
+
+    <div class="settings-section">
+      <div class="setting-item">
+        <label for="apiKey" class="setting-label">
+          <strong>DeepSeek Open Router API Key</strong>
+          <span class="setting-desc">Get your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></span>
+        </label>
+        <div class="input-group">
+          <input 
+            type="password" 
+            id="apiKey" 
+            class="input-field" 
+            placeholder="Enter your API key"
+            autocomplete="off"
+          >
+          <button id="toggleVisibility" class="toggle-btn" title="Show/Hide API Key">
+            👁️
+          </button>
+        </div>
+        <div class="input-hint">
+          Your API key is stored locally and never shared
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <label class="setting-label">
+          <strong>Default Settings</strong>
+          <span class="setting-desc">Default state when extension loads</span>
+        </label>
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="defaultSpell">
+            <span>Enable Spell Check by default</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="defaultGrammar">
+            <span>Enable Grammar Check by default</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="saveBtn" class="btn btn-primary">Save Settings</button>
+      <button id="testBtn" class="btn btn-secondary">Test API Key</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="info-section">
+      <h3>How to get your API key:</h3>
+      <ol>
+        <li>Visit <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></li>
+        <li>Sign up or log in</li>
+        <li>Create a new API key</li>
+        <li>Copy and paste it above</li>
+      </ol>
+    </div>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>
+

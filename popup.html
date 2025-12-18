@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spell & Grammar Checker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Spell & Grammar Checker</h1>
+      <p class="subtitle">For Developers</p>
+    </header>
+    
+    <div class="controls">
+      <div class="toggle-group">
+        <label class="toggle-label">
+          <span class="toggle-text">
+            <strong>Spell Check</strong>
+            <span class="toggle-desc">Check spelling errors</span>
+          </span>
+          <label class="switch">
+            <input type="checkbox" id="spellToggle">
+            <span class="slider"></span>
+          </label>
+        </label>
+      </div>
+      
+      <div class="toggle-group">
+        <label class="toggle-label">
+          <span class="toggle-text">
+            <strong>Grammar Check</strong>
+            <span class="toggle-desc">Check grammar errors</span>
+          </span>
+          <label class="switch">
+            <input type="checkbox" id="grammarToggle">
+            <span class="slider"></span>
+          </label>
+        </label>
+      </div>
+    </div>
+    
+    <div class="status" id="status">
+      <span class="status-icon">✓</span>
+      <span class="status-text">Ready</span>
+    </div>
+    
+    <div class="actions">
+      <button id="checkBtn" class="btn btn-primary">Check Page</button>
+      <button id="settingsBtn" class="btn btn-secondary">Settings</button>
+    </div>
+    
+    <div class="info">
+      <p>Click "Check Page" to analyze the current page</p>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
+

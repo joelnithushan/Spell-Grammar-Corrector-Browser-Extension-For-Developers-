@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Icon Generator</title>
+</head>
+<body>
+  <h1>Extension Icon Generator</h1>
+  <p>Open this file in a browser and right-click each canvas to save as PNG</p>
+  
+  <canvas id="icon16" width="16" height="16"></canvas>
+  <canvas id="icon48" width="48" height="48"></canvas>
+  <canvas id="icon128" width="128" height="128"></canvas>
+  
+  <script>
+    function drawIcon(canvas, size) {
+      const ctx = canvas.getContext('2d');
+      
+      // Gradient background
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#667eea');
+      gradient.addColorStop(1, '#764ba2');
+      
+      // Rounded rectangle
+      const radius = size * 0.15;
+      ctx.fillStyle = gradient;
+      roundRect(ctx, 0, 0, size, size, radius);
+      ctx.fill();
+      
+      // Checkmark
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = size * 0.15;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(size * 0.25, size * 0.5);
+      ctx.lineTo(size * 0.45, size * 0.7);
+      ctx.lineTo(size * 0.75, size * 0.3);
+      ctx.stroke();
+    }
+    
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+    
+    drawIcon(document.getElementById('icon16'), 16);
+    drawIcon(document.getElementById('icon48'), 48);
+    drawIcon(document.getElementById('icon128'), 128);
+  </script>
+</body>
+</html>
+
