@@ -4,12 +4,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const grammarToggle = document.getElementById('grammarToggle');
   const checkBtn = document.getElementById('checkBtn');
   const status = document.getElementById('status');
-
   const errorsContainer = document.getElementById('errorsContainer');
   const errorsList = document.getElementById('errorsList');
   const errorCount = document.getElementById('errorCount');
   const info = document.getElementById('info');
-  const status = document.getElementById('status');
   const statusText = document.getElementById('statusText');
   const settingsLink = document.getElementById('settingsLink');
   const controls = document.getElementById('controls');
@@ -33,7 +31,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
     if (!spellToggle.checked && !grammarToggle.checked) {
-      showStatus('Please enable at least one option', 'error');
+      status.style.display = 'block';
+      status.style.background = '#fef2f2';
+      statusText.textContent = 'Please enable at least one option';
+      statusText.style.color = '#991b1b';
       return;
     }
 
@@ -53,11 +54,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check if URL is valid for content scripts
     if (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || 
         tab.url.startsWith('chrome-extension://') || tab.url.startsWith('moz-extension://')) {
-      showStatus('Cannot check this page type', 'error');
+      status.style.display = 'block';
+      status.style.background = '#fef2f2';
+      statusText.textContent = 'Cannot check this page type';
+      statusText.style.color = '#991b1b';
       return;
     }
 
-    showStatus('Checking page...', 'info');
+    // Hide controls and info, show status
+    controls.style.display = 'none';
+    info.style.display = 'none';
+    status.style.display = 'block';
+    status.style.background = '#f0fdf4';
+    statusText.textContent = 'Analyzing page...';
+    statusText.style.color = '#166534';
+    errorsContainer.style.display = 'none';
     
     try {
       // Try to inject content script if not already loaded
@@ -66,18 +77,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           target: { tabId: tab.id },
           files: ['content.js']
         });
-        // Inject CSS as well
         await chrome.scripting.insertCSS({
           target: { tabId: tab.id },
           files: ['content.css']
         });
-        // Wait for script to initialize
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 200));
       } catch (injectError) {
-        // Script might already be injected, that's okay
         console.log('Script injection note:', injectError.message);
       }
-
 
       // Send check page message
       const response = await sendMessagePromise(tab.id, {
@@ -88,22 +95,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (response && response.success) {
         const errorCountValue = response.errorCount || 0;
-        showStatus(`Found ${errorCountValue} issues`, 'success');
+        
+        // Hide status, show results
+        status.style.display = 'none';
         
         if (errorCountValue > 0 && response.errors) {
           displayErrors(response.errors, tab.id);
         } else {
-          hideErrors();
+          info.style.display = 'block';
+          info.innerHTML = '<p>No errors found! ✓</p>';
         }
       } else if (response && response.error) {
-        showStatus('Error: ' + response.error, 'error');
-        hideErrors();
+        status.style.display = 'block';
+        status.style.background = '#fef2f2';
+        statusText.textContent = 'Error: ' + response.error;
+        statusText.style.color = '#991b1b';
+        info.style.display = 'block';
       } else {
-        showStatus('Check completed', 'success');
-        hideErrors();
+        status.style.display = 'none';
+        info.style.display = 'block';
+        info.innerHTML = '<p>Analysis completed. No errors found.</p>';
       }
     } catch (error) {
-      showStatus('Error: ' + error.message, 'error');
+      status.style.display = 'block';
+      status.style.background = '#fef2f2';
+      statusText.textContent = 'Error: ' + error.message;
+      statusText.style.color = '#991b1b';
+      info.style.display = 'block';
       console.error('Check page error:', error);
     }
   });
@@ -122,70 +140,46 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     errors.forEach(error => {
       const errorItem = document.createElement('div');
-      errorItem.className = `error-item ${error.type}`;
+      errorItem.className = 'error-item';
       errorItem.dataset.errorId = error.id;
 
-      // Format: original -> suggestion
+      // Type badge
+      const typeBadge = document.createElement('div');
+      typeBadge.className = `error-type-badge ${error.type}`;
+      typeBadge.textContent = error.type.toUpperCase();
+      errorItem.appendChild(typeBadge);
+
+      // Correction format: original → suggestion
       const primarySuggestion = error.suggestions && error.suggestions.length > 0 
         ? error.suggestions[0] 
         : 'No suggestion';
       
-      const wordDiv = document.createElement('div');
-      wordDiv.className = 'error-word';
-      wordDiv.innerHTML = `
+      const correctionDiv = document.createElement('div');
+      correctionDiv.className = 'error-correction';
+      correctionDiv.innerHTML = `
         <span class="word-original">${escapeHtml(error.word)}</span>
-        <span class="word-arrow"> → </span>
+        <span class="word-arrow">→</span>
         <span class="word-suggestion">${escapeHtml(primarySuggestion)}</span>
-        <span class="error-type">${error.type}</span>
       `;
+      errorItem.appendChild(correctionDiv);
 
-      // Show additional suggestions if available
-      const suggestionsDiv = document.createElement('div');
-      suggestionsDiv.className = 'error-suggestions';
-      
-      if (error.suggestions && error.suggestions.length > 1) {
-        const moreLabel = document.createElement('span');
-        moreLabel.textContent = 'More: ';
-        moreLabel.style.fontSize = '11px';
-        moreLabel.style.color = '#718096';
-        moreLabel.style.marginRight = '4px';
-        suggestionsDiv.appendChild(moreLabel);
-        
-        // Show remaining suggestions (skip first one as it's already shown)
-        error.suggestions.slice(1).forEach(suggestion => {
-          const badge = document.createElement('span');
-          badge.className = 'suggestion-badge';
-          badge.textContent = suggestion;
-          badge.addEventListener('click', (e) => {
-            e.stopPropagation();
-            // Update the main suggestion display
-            wordDiv.querySelector('.word-suggestion').textContent = suggestion;
-            // Highlight the clicked badge
-            suggestionsDiv.querySelectorAll('.suggestion-badge').forEach(b => {
-              b.style.opacity = '1';
-            });
-            badge.style.opacity = '0.7';
-            badge.style.fontWeight = '600';
-          });
-          suggestionsDiv.appendChild(badge);
-        });
-      } else if (!error.suggestions || error.suggestions.length === 0) {
-        const noSuggestions = document.createElement('span');
-        noSuggestions.textContent = 'No suggestions available';
-        noSuggestions.style.color = '#a0aec0';
-        noSuggestions.style.fontSize = '11px';
-        suggestionsDiv.appendChild(noSuggestions);
+      // Context
+      if (error.context) {
+        const contextDiv = document.createElement('div');
+        contextDiv.className = 'error-context';
+        // Highlight the error word in context
+        const contextText = error.context;
+        const wordIndex = contextText.toLowerCase().indexOf(error.word.toLowerCase());
+        if (wordIndex >= 0) {
+          const before = contextText.substring(0, wordIndex);
+          const word = contextText.substring(wordIndex, wordIndex + error.word.length);
+          const after = contextText.substring(wordIndex + error.word.length);
+          contextDiv.innerHTML = `${escapeHtml(before)}<span class="highlight">${escapeHtml(word)}</span>${escapeHtml(after)}`;
+        } else {
+          contextDiv.textContent = contextText;
+        }
+        errorItem.appendChild(contextDiv);
       }
-
-      const contextDiv = document.createElement('div');
-      contextDiv.className = 'error-context';
-      contextDiv.textContent = error.context || '';
-
-      errorItem.appendChild(wordDiv);
-      if (suggestionsDiv.children.length > 0) {
-        errorItem.appendChild(suggestionsDiv);
-      }
-      errorItem.appendChild(contextDiv);
 
       // Click to highlight on page
       errorItem.addEventListener('click', async () => {
@@ -194,13 +188,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             action: 'highlightError',
             errorId: error.id
           });
-          // Highlight the clicked item
+          // Highlight clicked item
           document.querySelectorAll('.error-item').forEach(item => {
-            item.style.background = '#f7fafc';
-            item.style.borderLeftWidth = '3px';
+            item.style.background = 'white';
           });
-          errorItem.style.background = '#dbeafe';
-          errorItem.style.borderLeftWidth = '4px';
+          errorItem.style.background = '#f0f9ff';
         } catch (error) {
           console.error('Error highlighting:', error);
         }
@@ -222,7 +214,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return div.innerHTML;
   }
 
-
   // Helper function to send message with promise
   function sendMessagePromise(tabId, message) {
     return new Promise((resolve, reject) => {
@@ -235,7 +226,4 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
   }
-
-  updateStatus();
 });
-
