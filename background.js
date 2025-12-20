@@ -69,44 +69,24 @@ async function analyzeText(text, options = {}) {
 }
 
 /**
- * Builds the analysis prompt for the AI
+ * Builds the analysis prompt for the AI (optimized for speed)
  */
 function buildAnalysisPrompt(text, spellEnabled, grammarEnabled) {
   const checks = [];
-  if (spellEnabled) checks.push('spelling errors');
-  if (grammarEnabled) checks.push('grammar errors');
+  if (spellEnabled) checks.push('spelling');
+  if (grammarEnabled) checks.push('grammar');
   
-  return `You are an expert English language analyzer. Analyze the following text and identify ALL ${checks.join(' and ')}.
+  // Optimized prompt - shorter and more direct for faster processing
+  return `Find ALL ${checks.join(' and ')} errors. Return ONLY JSON array, no other text.
 
-CRITICAL REQUIREMENTS:
-1. Find EVERY error - be thorough and comprehensive
-2. Return ONLY valid JSON - no explanations, no markdown, no other text
-3. If no errors exist, return an empty array []
-4. Each error must include exact position in the text
+Format: [{"word":"text","position":0,"endPosition":4,"type":"spelling","suggestions":["correct"]}]
 
-OUTPUT FORMAT (JSON array):
-[
-  {
-    "word": "exact text as it appears",
-    "position": start_index,
-    "endPosition": end_index,
-    "type": "spelling" or "grammar",
-    "suggestions": ["correction1", "correction2"]
-  }
-]
+Rules: Ignore code/URLs/variables. Focus on human-readable text. Positions start at 0.
 
-RULES:
-- Ignore: code, URLs, file paths, variable names, function names, JSON keys
-- Focus only on human-readable text content
-- Report each error exactly as it appears
-- Position indices start at 0
-
-TEXT TO ANALYZE:
----
+Text:
 ${text}
----
 
-Return ONLY the JSON array:`;
+JSON only:`;
 }
 
 /**
@@ -266,8 +246,9 @@ async function callDeepSeekAPI(apiKey, prompt) {
       role: 'user',
       content: prompt
     }],
-    temperature: 0.2,
-    max_tokens: 4000
+    temperature: 0.1, // Lower temperature for faster, more deterministic responses
+    max_tokens: 3000, // Reduced for faster responses
+    stream: false // Ensure non-streaming for faster processing
   };
   
   console.log('Sending request to OpenRouter:', {

@@ -66,11 +66,23 @@
       
       console.log('Extracted text length:', textData.text.length);
       
+      // Limit text length for faster processing (8000 chars is optimal for speed)
+      const MAX_TEXT_LENGTH = 8000;
+      let textToAnalyze = textData.text;
+      let textTruncated = false;
+      
+      if (textToAnalyze.length > MAX_TEXT_LENGTH) {
+        textToAnalyze = textToAnalyze.substring(0, MAX_TEXT_LENGTH);
+        textTruncated = true;
+        console.log(`Text truncated from ${textData.text.length} to ${MAX_TEXT_LENGTH} characters for faster processing`);
+      }
+      
       // Send to background for analysis
       const response = await chrome.runtime.sendMessage({
         action: 'analyzeText',
-        text: textData.text,
-        options: options
+        text: textToAnalyze,
+        options: options,
+        textTruncated: textTruncated
       });
       
       if (!response || !response.success) {

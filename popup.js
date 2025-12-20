@@ -105,10 +105,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (response && response.success) {
         if (response.errorCount > 0 && response.errors && response.errors.length > 0) {
           displayErrors(response.errors, tab.id);
+          if (response.textTruncated) {
+            showStatus('Note: Large page analyzed (first 8000 chars). Some content may not be checked.', 'info');
+          }
         } else {
           showStatus('No errors found! ✓', 'success');
           info.style.display = 'block';
-          info.textContent = 'The page appears to be error-free.';
+          if (response.textTruncated) {
+            info.textContent = 'The analyzed portion appears error-free. (Note: Large page - only first 8000 chars checked)';
+          } else {
+            info.textContent = 'The page appears to be error-free.';
+          }
         }
       } else {
         showStatus(response?.error || 'Analysis failed', 'error');
