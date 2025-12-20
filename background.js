@@ -210,10 +210,10 @@ async function callGeminiAPI(apiKey, prompt) {
       
       // Provide helpful error message
       if (errorMessage.includes('not found') || errorMessage.includes('not supported')) {
-        errorMessage = `Model error: ${errorMessage}. ` +
-          `Tried models: ${models.join(', ')}. ` +
-          `Please check your Google AI API key and ensure it has access to Gemini models. ` +
-          `Get your key from https://makersuite.google.com/app/apikey`;
+          errorMessage = `Model error: ${errorMessage}. ` +
+            `Tried models: ${models.join(', ')}. ` +
+            `Please check your Google AI API key and ensure it has access to Gemini models. ` +
+            `Get your key from https://aistudio.google.com/apikey`;
       }
       
       console.error('Gemini API Error:', {

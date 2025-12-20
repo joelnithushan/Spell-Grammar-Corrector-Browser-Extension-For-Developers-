@@ -28,9 +28,11 @@ A production-ready browser extension that uses AI to check spelling and grammar 
 3. Keys start with `sk-`
 
 **For Google Gemini:**
-1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Create an API key
-3. Keys start with `AIza`
+1. Visit [Google AI Studio](https://aistudio.google.com/apikey)
+2. Click "Create API key" and select "Create API key in new project"
+3. Copy the generated API key (trial keys work great for testing!)
+4. Keys start with `AIza`
+5. Free tier: 1,500 requests/day, 1,000,000 tokens/minute
 
 ### Configure Extension
 
