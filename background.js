@@ -1,20 +1,36 @@
 // Background Service Worker
 // Handles API communication with AI providers (Gemini/DeepSeek)
 
+console.log('Background service worker loaded');
+
+// Keep service worker alive
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('Extension installed/updated');
+});
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Message received:', request.action);
+  
   if (request.action === 'analyzeText') {
+    console.log('Starting text analysis, text length:', request.text?.length);
     analyzeText(request.text, request.options)
-      .then(result => sendResponse({ 
-        success: true, 
-        result,
-        textTruncated: request.textTruncated || false
-      }))
+      .then(result => {
+        console.log('Analysis successful, errors found:', result?.length || 0);
+        sendResponse({ 
+          success: true, 
+          result,
+          textTruncated: request.textTruncated || false
+        });
+      })
       .catch(error => {
         console.error('Analysis error:', error);
+        console.error('Error stack:', error.stack);
         sendResponse({ success: false, error: error.message });
       });
     return true; // Keep channel open for async response
   }
+  
+  return false;
 });
 
 /**
@@ -271,15 +287,45 @@ async function callDeepSeekAPI(apiKey, prompt) {
   console.log('Sending request to OpenRouter:', {
     url: 'https://openrouter.ai/api/v1/chat/completions',
     model: requestBody.model,
-    promptLength: prompt.length
+    promptLength: prompt.length,
+    headers: Object.keys(headers),
+    hasApiKey: !!cleanKey
   });
+  
+  // Test connectivity first
+  try {
+    console.log('Testing connectivity to OpenRouter...');
+    const testResponse = await fetch('https://openrouter.ai/api/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${cleanKey}`,
+        'Content-Type': 'application/json'
+      },
+      signal: AbortSignal.timeout(5000) // 5 second test
+    }).catch(() => null);
+    
+    if (!testResponse) {
+      throw new Error('Cannot reach OpenRouter API. Please check your internet connection and firewall settings.');
+    }
+    console.log('Connectivity test passed');
+  } catch (testError) {
+    console.error('Connectivity test failed:', testError);
+    if (testError.message.includes('timeout') || testError.name === 'AbortError') {
+      throw new Error('Network timeout: Cannot reach OpenRouter API. Please check your internet connection.');
+    }
+    throw new Error('Network error: Cannot reach OpenRouter API. Please check your internet connection and firewall settings.');
+  }
   
   let response;
   try {
     // Create timeout controller for better browser compatibility
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    const timeoutId = setTimeout(() => {
+      console.error('Request timeout after 60 seconds');
+      controller.abort();
+    }, 60000); // 60 second timeout
     
+    console.log('Making API request...');
     response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: headers,
@@ -288,16 +334,24 @@ async function callDeepSeekAPI(apiKey, prompt) {
     });
     
     clearTimeout(timeoutId);
+    console.log('API response received, status:', response.status);
   } catch (fetchError) {
-    console.error('Fetch error:', fetchError);
+    console.error('Fetch error details:', {
+      name: fetchError.name,
+      message: fetchError.message,
+      stack: fetchError.stack
+    });
     
     // Handle different types of fetch errors
     if (fetchError.name === 'AbortError') {
       throw new Error('Request timeout: The API request took too long (60s). Please try again or check your internet connection.');
-    } else if (fetchError.name === 'TypeError' && (fetchError.message.includes('fetch') || fetchError.message.includes('Failed to fetch'))) {
-      throw new Error('Network error: Unable to reach OpenRouter API. Please check your internet connection, firewall settings, or try again later.');
+    } else if (fetchError.name === 'TypeError') {
+      if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('fetch')) {
+        throw new Error('Network error: Unable to reach OpenRouter API. Possible causes: no internet, firewall blocking, or API service down. Please check your connection and try again.');
+      }
+      throw new Error(`Network error: ${fetchError.message}. Please check your internet connection.`);
     } else if (fetchError.message && fetchError.message.includes('Failed to fetch')) {
-      throw new Error('Network error: Unable to reach OpenRouter API. Please check your internet connection and try again.');
+      throw new Error('Network error: Failed to fetch from OpenRouter API. Please check: 1) Internet connection, 2) Firewall settings, 3) API service status. Try again later.');
     } else {
       throw new Error(`Network error: ${fetchError.message || 'Unknown error'}. Please check your internet connection and try again.`);
     }
