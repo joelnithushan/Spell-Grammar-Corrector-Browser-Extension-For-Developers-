@@ -103,7 +103,8 @@
           suggestions: e.suggestions,
           type: e.type,
           context: e.context
-        }))
+        })),
+        textTruncated: textTruncated
       };
     } catch (error) {
       window.spellGrammarChecker.isAnalyzing = false;
