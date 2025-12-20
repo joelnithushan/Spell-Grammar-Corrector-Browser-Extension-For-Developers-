@@ -173,9 +173,11 @@ async function callGeminiAPI(apiKey, prompt) {
               }
             }),
             signal: (() => {
-              const controller = new AbortController();
-              setTimeout(() => controller.abort(), 60000);
-              return controller.signal;
+              const fallbackController = new AbortController();
+              const fallbackTimeout = setTimeout(() => fallbackController.abort(), 60000);
+              // Store timeout to clear if successful
+              response.then(() => clearTimeout(fallbackTimeout)).catch(() => clearTimeout(fallbackTimeout));
+              return fallbackController.signal;
             })()
           });
           
