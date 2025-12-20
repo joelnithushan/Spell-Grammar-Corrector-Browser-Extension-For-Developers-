@@ -41,8 +41,16 @@ async function analyzeText(text, options = {}) {
   const trimmedKey = apiKey.trim();
   
   // Validate OpenRouter key format
-  if (provider === 'deepseek' && !trimmedKey.startsWith('sk-')) {
-    console.warn('OpenRouter API key should start with "sk-". Current key format may be incorrect.');
+  if (provider === 'deepseek') {
+    if (!trimmedKey.startsWith('sk-')) {
+      throw new Error('Invalid OpenRouter API key format. Keys must start with "sk-". ' +
+        'Please check your API key in settings. Get your key from https://openrouter.ai/keys');
+    }
+    
+    // Additional validation: OpenRouter keys are typically longer
+    if (trimmedKey.length < 20) {
+      console.warn('OpenRouter API key seems too short. Typical keys are 40+ characters.');
+    }
   }
   
   // Build analysis prompt
@@ -141,55 +149,100 @@ async function callGeminiAPI(apiKey, prompt) {
  * Calls DeepSeek API via OpenRouter
  */
 async function callDeepSeekAPI(apiKey, prompt) {
+  // Validate and clean API key
+  const cleanKey = apiKey.trim();
+  
+  if (!cleanKey) {
+    throw new Error('API key is empty. Please set your OpenRouter API key in settings.');
+  }
+  
+  if (!cleanKey.startsWith('sk-')) {
+    throw new Error('Invalid OpenRouter API key format. Keys must start with "sk-". Get your key from https://openrouter.ai/keys');
+  }
+  
+  // Log key info for debugging (without exposing full key)
+  console.log('OpenRouter API Request:', {
+    keyLength: cleanKey.length,
+    keyPrefix: cleanKey.substring(0, 10) + '...',
+    keyStartsWithSk: cleanKey.startsWith('sk-')
+  });
+  
   const headers = {
-    'Authorization': `Bearer ${apiKey}`,
-    'Content-Type': 'application/json'
+    'Authorization': `Bearer ${cleanKey}`,
+    'Content-Type': 'application/json',
+    'HTTP-Referer': chrome.runtime.getURL('') || 'https://github.com/joelnithushan/Spell-Grammar-Corrector-Browser-Extension-For-Developers-',
+    'X-Title': 'Spell & Grammar Checker Extension'
   };
   
-  // Add optional headers
-  try {
-    const extensionUrl = chrome.runtime.getURL('');
-    if (extensionUrl) {
-      headers['HTTP-Referer'] = extensionUrl;
-      headers['X-Title'] = 'Spell & Grammar Checker';
-    }
-  } catch (e) {
-    // Ignore
-  }
+  const requestBody = {
+    model: 'deepseek/deepseek-chat',
+    messages: [{
+      role: 'user',
+      content: prompt
+    }],
+    temperature: 0.2,
+    max_tokens: 4000
+  };
+  
+  console.log('Sending request to OpenRouter:', {
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    model: requestBody.model,
+    promptLength: prompt.length
+  });
   
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: headers,
-    body: JSON.stringify({
-      model: 'deepseek/deepseek-chat',
-      messages: [{
-        role: 'user',
-        content: prompt
-      }],
-      temperature: 0.2,
-      max_tokens: 4000
-    })
+    body: JSON.stringify(requestBody)
   });
   
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    let errorDetails = null;
+    
     try {
-      const errorData = await response.json();
-      errorMessage = errorData.error?.message || errorData.message || errorMessage;
+      const errorText = await response.text();
+      console.error('OpenRouter API Error Response:', errorText);
       
-      // Provide more helpful error messages for OpenRouter
-      if (response.status === 401 || errorMessage.toLowerCase().includes('auth') || 
-          errorMessage.toLowerCase().includes('cookie') || 
-          errorMessage.toLowerCase().includes('key') ||
-          errorMessage.toLowerCase().includes('user') ||
-          errorMessage.toLowerCase().includes('org')) {
-        errorMessage = `Authentication failed: ${errorMessage}. ` +
-          `Please verify your OpenRouter API key is correct and starts with "sk-". ` +
-          `Get your key from https://openrouter.ai/keys`;
+      try {
+        errorDetails = JSON.parse(errorText);
+        errorMessage = errorDetails.error?.message || errorDetails.message || errorMessage;
+      } catch (parseError) {
+        errorMessage = errorText || errorMessage;
       }
     } catch (e) {
-      // Use default error message
+      console.error('Error reading response:', e);
     }
+    
+    // Provide more helpful error messages for OpenRouter
+    const lowerError = errorMessage.toLowerCase();
+    if (response.status === 401 || 
+        lowerError.includes('auth') || 
+        lowerError.includes('cookie') || 
+        lowerError.includes('key') ||
+        lowerError.includes('user') ||
+        lowerError.includes('org') ||
+        lowerError.includes('invalid')) {
+      
+      // Check if it's specifically the cookie error
+      if (lowerError.includes('cookie')) {
+        errorMessage = `Invalid API Key: The OpenRouter API key you provided is not valid or has expired. ` +
+          `Please verify your key at https://openrouter.ai/keys and ensure it starts with "sk-". ` +
+          `Make sure you copy the entire key without any extra spaces.`;
+      } else {
+        errorMessage = `Authentication failed: ${errorMessage}. ` +
+          `Please verify your OpenRouter API key is correct and starts with "sk-". ` +
+          `Get or verify your key at https://openrouter.ai/keys`;
+      }
+    }
+    
+    console.error('OpenRouter API Error:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorMessage: errorMessage,
+      errorDetails: errorDetails
+    });
+    
     throw new Error(errorMessage);
   }
   

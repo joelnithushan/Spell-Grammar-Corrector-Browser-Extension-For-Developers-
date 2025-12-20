@@ -88,16 +88,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     // Validate OpenRouter key format (should start with sk-)
-    if (provider === 'deepseek' && !deepseekKey.startsWith('sk-')) {
-      showStatus('Warning: OpenRouter API keys should start with "sk-". Please verify your key.', 'error');
-      return;
+    if (provider === 'deepseek') {
+      if (!deepseekKey.startsWith('sk-')) {
+        showStatus('Error: OpenRouter API keys must start with "sk-". Please check your key and try again.', 'error');
+        return;
+      }
+      
+      // Warn if key seems too short
+      if (deepseekKey.length < 20) {
+        showStatus('Warning: API key seems too short. Typical OpenRouter keys are 40+ characters. Please verify your key.', 'error');
+        return;
+      }
     }
     
-    // Save both keys (preserve the one not being edited)
+    // Save both keys (preserve the one not being edited, but always save the current input)
+    const existing = await chrome.storage.sync.get(['apiKey', 'geminiApiKey']);
     await chrome.storage.sync.set({
       apiProvider: provider,
-      apiKey: deepseekKey || (await chrome.storage.sync.get(['apiKey'])).apiKey || '',
-      geminiApiKey: geminiKey || (await chrome.storage.sync.get(['geminiApiKey'])).geminiApiKey || '',
+      apiKey: deepseekKey || existing.apiKey || '',
+      geminiApiKey: geminiKey || existing.geminiApiKey || '',
       spellEnabled: defaultSpell.checked,
       grammarEnabled: defaultGrammar.checked
     });
