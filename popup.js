@@ -158,8 +158,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (response.ok) {
         showStatus(`✓ ${provider === 'gemini' ? 'Gemini' : 'DeepSeek'} API connected!`, 'success');
       } else {
-        const error = await response.json().catch(() => ({}));
-        showStatus(`✗ API test failed: ${error.error?.message || 'Invalid key'}`, 'error');
+        let errorMessage = 'Invalid key';
+        try {
+          const error = await response.json();
+          errorMessage = error.error?.message || error.message || errorMessage;
+          
+          // Provide helpful guidance for OpenRouter errors
+          if (provider === 'deepseek' && (errorMessage.includes('cookie') || errorMessage.includes('auth'))) {
+            errorMessage = `Authentication failed: ${errorMessage}. ` +
+              `Make sure your OpenRouter API key starts with "sk-" and is valid. ` +
+              `Get your key from https://openrouter.ai/keys`;
+          }
+        } catch (e) {
+          // Use default message
+        }
+        showStatus(`✗ API test failed: ${errorMessage}`, 'error');
       }
     } catch (error) {
       showStatus(`✗ Connection error: ${error.message}`, 'error');
@@ -305,4 +318,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return div.innerHTML;
   }
 });
+
+
 

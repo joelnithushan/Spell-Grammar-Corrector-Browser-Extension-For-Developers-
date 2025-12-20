@@ -40,6 +40,11 @@ async function analyzeText(text, options = {}) {
   
   const trimmedKey = apiKey.trim();
   
+  // Validate OpenRouter key format
+  if (provider === 'deepseek' && !trimmedKey.startsWith('sk-')) {
+    console.warn('OpenRouter API key should start with "sk-". Current key format may be incorrect.');
+  }
+  
   // Build analysis prompt
   const prompt = buildAnalysisPrompt(text, spellEnabled, grammarEnabled);
   
@@ -239,4 +244,6 @@ function parseAIResponse(data, provider) {
            error.suggestions.length > 0;
   });
 }
+
+
 

@@ -7,3 +7,5 @@ Place your extension icons here:
 
 You can create icons using any image editor or use the `create_icons.html` file to generate them programmatically.
 
+
+

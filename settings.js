@@ -77,19 +77,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Save button
   saveBtn.addEventListener('click', async () => {
     const provider = providerDeepseek.checked ? 'deepseek' : 'gemini';
-    const apiKey = provider === 'deepseek' 
-      ? deepseekApiKey.value.trim() 
-      : geminiApiKey.value.trim();
+    const deepseekKey = deepseekApiKey.value.trim();
+    const geminiKey = geminiApiKey.value.trim();
     
-    if (!apiKey) {
-      showStatus('Please enter an API key', 'error');
+    // Validate the active provider's key
+    const activeKey = provider === 'deepseek' ? deepseekKey : geminiKey;
+    if (!activeKey) {
+      showStatus('Please enter an API key for the selected provider', 'error');
       return;
     }
     
+    // Validate OpenRouter key format (should start with sk-)
+    if (provider === 'deepseek' && !deepseekKey.startsWith('sk-')) {
+      showStatus('Warning: OpenRouter API keys should start with "sk-". Please verify your key.', 'error');
+      return;
+    }
+    
+    // Save both keys (preserve the one not being edited)
     await chrome.storage.sync.set({
       apiProvider: provider,
-      apiKey: provider === 'deepseek' ? apiKey : (await chrome.storage.sync.get(['apiKey'])).apiKey || '',
-      geminiApiKey: provider === 'gemini' ? apiKey : (await chrome.storage.sync.get(['geminiApiKey'])).geminiApiKey || '',
+      apiKey: deepseekKey || (await chrome.storage.sync.get(['apiKey'])).apiKey || '',
+      geminiApiKey: geminiKey || (await chrome.storage.sync.get(['geminiApiKey'])).geminiApiKey || '',
       spellEnabled: defaultSpell.checked,
       grammarEnabled: defaultGrammar.checked
     });
@@ -132,8 +140,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (response.ok) {
         showStatus(`✓ ${provider === 'gemini' ? 'Gemini' : 'DeepSeek'} API key is valid!`, 'success');
       } else {
-        const error = await response.json().catch(() => ({}));
-        showStatus(`✗ API key test failed: ${error.error?.message || 'Invalid key'}`, 'error');
+        let errorMessage = 'Invalid key';
+        try {
+          const error = await response.json();
+          errorMessage = error.error?.message || error.message || errorMessage;
+          
+          // Provide helpful guidance for OpenRouter errors
+          if (provider === 'deepseek' && (errorMessage.includes('cookie') || errorMessage.includes('auth'))) {
+            errorMessage = `Authentication failed: ${errorMessage}. ` +
+              `Make sure your OpenRouter API key starts with "sk-" and is valid. ` +
+              `Get your key from https://openrouter.ai/keys`;
+          }
+        } catch (e) {
+          // Use default message
+        }
+        showStatus(`✗ API key test failed: ${errorMessage}`, 'error');
       }
     } catch (error) {
       showStatus(`✗ Error: ${error.message}`, 'error');
@@ -153,4 +174,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 5000);
   }
 });
+
+
 
