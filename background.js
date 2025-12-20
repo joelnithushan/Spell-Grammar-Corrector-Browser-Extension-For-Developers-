@@ -113,7 +113,16 @@ Return ONLY the JSON array:`;
  * Calls Gemini API
  */
 async function callGeminiAPI(apiKey, prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+  // Use gemini-1.5-flash (faster and cheaper) or gemini-1.5-pro (more capable)
+  // Try gemini-1.5-flash first, fallback to gemini-1.5-pro if needed
+  const model = 'gemini-1.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  
+  console.log('Gemini API Request:', {
+    model: model,
+    url: url.replace(apiKey, 'API_KEY_HIDDEN'),
+    promptLength: prompt.length
+  });
   
   const response = await fetch(url, {
     method: 'POST',
@@ -133,12 +142,37 @@ async function callGeminiAPI(apiKey, prompt) {
   
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    let errorDetails = null;
+    
     try {
-      const errorData = await response.json();
-      errorMessage = errorData.error?.message || errorData.message || errorMessage;
+      const errorText = await response.text();
+      console.error('Gemini API Error Response:', errorText);
+      
+      try {
+        errorDetails = JSON.parse(errorText);
+        errorMessage = errorDetails.error?.message || errorDetails.message || errorMessage;
+        
+        // If model not found, suggest alternatives
+        if (errorMessage.includes('not found') || errorMessage.includes('not supported')) {
+          errorMessage = `Model error: ${errorMessage}. ` +
+            `The extension is using ${model}. ` +
+            `Please check your Google AI API key and ensure it has access to Gemini models. ` +
+            `Get your key from https://makersuite.google.com/app/apikey`;
+        }
+      } catch (parseError) {
+        errorMessage = errorText || errorMessage;
+      }
     } catch (e) {
-      // Use default error message
+      console.error('Error reading Gemini response:', e);
     }
+    
+    console.error('Gemini API Error:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorMessage: errorMessage,
+      errorDetails: errorDetails
+    });
+    
     throw new Error(errorMessage);
   }
   
