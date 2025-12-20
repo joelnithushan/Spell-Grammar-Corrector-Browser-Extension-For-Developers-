@@ -124,8 +124,14 @@ async function callGeminiAPI(apiKey, prompt) {
   });
   
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
-    throw new Error(error.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error?.message || errorData.message || errorMessage;
+    } catch (e) {
+      // Use default error message
+    }
+    throw new Error(errorMessage);
   }
   
   return await response.json();
@@ -166,8 +172,25 @@ async function callDeepSeekAPI(apiKey, prompt) {
   });
   
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
-    throw new Error(error.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error?.message || errorData.message || errorMessage;
+      
+      // Provide more helpful error messages for OpenRouter
+      if (response.status === 401 || errorMessage.toLowerCase().includes('auth') || 
+          errorMessage.toLowerCase().includes('cookie') || 
+          errorMessage.toLowerCase().includes('key') ||
+          errorMessage.toLowerCase().includes('user') ||
+          errorMessage.toLowerCase().includes('org')) {
+        errorMessage = `Authentication failed: ${errorMessage}. ` +
+          `Please verify your OpenRouter API key is correct and starts with "sk-". ` +
+          `Get your key from https://openrouter.ai/keys`;
+      }
+    } catch (e) {
+      // Use default error message
+    }
+    throw new Error(errorMessage);
   }
   
   return await response.json();
