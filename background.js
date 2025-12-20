@@ -108,7 +108,9 @@ async function callGeminiAPI(apiKey, prompt) {
     promptLength: prompt.length
   });
   
-  let response = await fetch(url, {
+  let response;
+  try {
+    response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -169,7 +171,8 @@ async function callGeminiAPI(apiKey, prompt) {
                 temperature: 0.2,
                 maxOutputTokens: 4000
               }
-            })
+            }),
+            signal: AbortSignal.timeout(60000) // 60 second timeout
           });
           
           if (response.ok) {
@@ -178,6 +181,10 @@ async function callGeminiAPI(apiKey, prompt) {
           }
         } catch (e) {
           console.error(`Fallback model ${model} also failed:`, e);
+          // If it's a network error, don't try other fallbacks
+          if (e.message.includes('Failed to fetch') || e.name === 'TypeError') {
+            throw new Error(`Network error: Unable to reach Gemini API. Please check your internet connection and try again.`);
+          }
         }
       }
     }
@@ -261,11 +268,29 @@ async function callDeepSeekAPI(apiKey, prompt) {
     promptLength: prompt.length
   });
   
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify(requestBody)
-  });
+  let response;
+  try {
+    response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(requestBody),
+      // Add timeout handling
+      signal: AbortSignal.timeout(60000) // 60 second timeout
+    });
+  } catch (fetchError) {
+    console.error('Fetch error:', fetchError);
+    
+    // Handle different types of fetch errors
+    if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
+      throw new Error('Request timeout: The API request took too long. Please try again or check your internet connection.');
+    } else if (fetchError.name === 'TypeError' && fetchError.message.includes('fetch')) {
+      throw new Error('Network error: Failed to connect to OpenRouter API. Please check your internet connection and try again.');
+    } else if (fetchError.message.includes('Failed to fetch')) {
+      throw new Error('Network error: Unable to reach OpenRouter API. Please check your internet connection, firewall settings, or try again later.');
+    } else {
+      throw new Error(`Network error: ${fetchError.message}. Please check your internet connection and try again.`);
+    }
+  }
   
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
