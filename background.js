@@ -113,10 +113,10 @@ Return ONLY the JSON array:`;
  * Calls Gemini API
  */
 async function callGeminiAPI(apiKey, prompt) {
-  // Use gemini-1.5-flash (faster and cheaper) or gemini-1.5-pro (more capable)
-  // Try gemini-1.5-flash first, fallback to gemini-1.5-pro if needed
-  const model = 'gemini-1.5-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  // Use gemini-2.5-flash (latest, optimized for cost and speed) or fallback to older versions
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash'];
+  let model = models[0];
+  let url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   
   console.log('Gemini API Request:', {
     model: model,
@@ -124,7 +124,7 @@ async function callGeminiAPI(apiKey, prompt) {
     promptLength: prompt.length
   });
   
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -140,40 +140,92 @@ async function callGeminiAPI(apiKey, prompt) {
     })
   });
   
+  // If model not found, try fallback models
   if (!response.ok) {
-    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    let errorText = '';
     let errorDetails = null;
     
     try {
-      const errorText = await response.text();
+      errorText = await response.text();
       console.error('Gemini API Error Response:', errorText);
       
       try {
         errorDetails = JSON.parse(errorText);
-        errorMessage = errorDetails.error?.message || errorDetails.message || errorMessage;
-        
-        // If model not found, suggest alternatives
-        if (errorMessage.includes('not found') || errorMessage.includes('not supported')) {
-          errorMessage = `Model error: ${errorMessage}. ` +
-            `The extension is using ${model}. ` +
-            `Please check your Google AI API key and ensure it has access to Gemini models. ` +
-            `Get your key from https://makersuite.google.com/app/apikey`;
-        }
-      } catch (parseError) {
-        errorMessage = errorText || errorMessage;
+      } catch (e) {
+        // Not JSON
       }
     } catch (e) {
       console.error('Error reading Gemini response:', e);
     }
     
-    console.error('Gemini API Error:', {
-      status: response.status,
-      statusText: response.statusText,
-      errorMessage: errorMessage,
-      errorDetails: errorDetails
-    });
+    // Try fallback models if current model is not found
+    if (response.status === 404 || 
+        (errorDetails?.error?.message?.includes('not found') || 
+         errorDetails?.error?.message?.includes('not supported'))) {
+      
+      console.log(`Model ${model} not available, trying fallback models...`);
+      
+      for (let i = 1; i < models.length; i++) {
+        model = models[i];
+        url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        
+        console.log(`Trying fallback model: ${model}`);
+        
+        try {
+          response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{ text: prompt }]
+              }],
+              generationConfig: {
+                temperature: 0.2,
+                maxOutputTokens: 4000
+              }
+            })
+          });
+          
+          if (response.ok) {
+            console.log(`Successfully using fallback model: ${model}`);
+            break;
+          }
+        } catch (e) {
+          console.error(`Fallback model ${model} also failed:`, e);
+        }
+      }
+    }
     
-    throw new Error(errorMessage);
+    // If still not ok after trying fallbacks, throw error
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      
+      if (errorDetails) {
+        errorMessage = errorDetails.error?.message || errorDetails.message || errorMessage;
+      } else if (errorText) {
+        errorMessage = errorText;
+      }
+      
+      // Provide helpful error message
+      if (errorMessage.includes('not found') || errorMessage.includes('not supported')) {
+        errorMessage = `Model error: ${errorMessage}. ` +
+          `Tried models: ${models.join(', ')}. ` +
+          `Please check your Google AI API key and ensure it has access to Gemini models. ` +
+          `Get your key from https://makersuite.google.com/app/apikey`;
+      }
+      
+      console.error('Gemini API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorMessage: errorMessage,
+        errorDetails: errorDetails,
+        modelsTried: models
+      });
+      
+      throw new Error(errorMessage);
+    }
   }
   
   return await response.json();

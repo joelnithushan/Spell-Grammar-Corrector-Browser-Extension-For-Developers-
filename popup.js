@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // If model list fails, try a direct generateContent test
         if (!response.ok) {
-          const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+          const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
           response = await fetch(testUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
