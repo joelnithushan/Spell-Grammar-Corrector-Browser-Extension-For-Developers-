@@ -4,7 +4,11 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'analyzeText') {
     analyzeText(request.text, request.options)
-      .then(result => sendResponse({ success: true, result }))
+      .then(result => sendResponse({ 
+        success: true, 
+        result,
+        textTruncated: request.textTruncated || false
+      }))
       .catch(error => {
         console.error('Analysis error:', error);
         sendResponse({ success: false, error: error.message });
