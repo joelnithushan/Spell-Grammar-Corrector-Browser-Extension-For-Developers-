@@ -58,6 +58,41 @@ A production-ready browser extension that uses AI to check spelling and grammar 
 - **popup.html/js/css** - Extension popup UI
 - **settings.html/js/css** - Settings page for configuration
 
+## Troubleshooting
+
+### "No user or org id found in auth cookie" Error
+
+This error indicates an issue with your OpenRouter API key. Follow these steps:
+
+1. **Verify your API key format:**
+   - OpenRouter keys must start with `sk-`
+   - Keys are typically 40+ characters long
+   - Make sure there are no extra spaces before or after the key
+
+2. **Get a new API key:**
+   - Visit [OpenRouter Keys](https://openrouter.ai/keys)
+   - Make sure you're logged in
+   - Create a new API key if needed
+   - Copy the entire key (it should start with `sk-`)
+
+3. **Update your settings:**
+   - Open extension Settings
+   - Paste the API key (make sure no extra spaces)
+   - Click "Test API Key" to verify it works
+   - Save settings
+
+4. **Check the browser console:**
+   - Open Developer Tools (F12)
+   - Check the Console tab for detailed error messages
+   - Look for any validation warnings about the API key
+
+### API Key Not Working
+
+- Ensure you have credits/balance in your OpenRouter account
+- Verify the API key is active and not revoked
+- Try generating a new API key
+- Check that you selected the correct provider (DeepSeek vs Gemini)
+
 ## Development
 
 The extension is built with:
