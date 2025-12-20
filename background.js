@@ -292,28 +292,31 @@ async function callDeepSeekAPI(apiKey, prompt) {
     hasApiKey: !!cleanKey
   });
   
-  // Test connectivity first
+  // Test connectivity first (optional - skip if it fails, main request will handle it)
   try {
     console.log('Testing connectivity to OpenRouter...');
+    const testController = new AbortController();
+    const testTimeout = setTimeout(() => testController.abort(), 5000);
+    
     const testResponse = await fetch('https://openrouter.ai/api/v1/models', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${cleanKey}`,
         'Content-Type': 'application/json'
       },
-      signal: AbortSignal.timeout(5000) // 5 second test
+      signal: testController.signal
     }).catch(() => null);
     
-    if (!testResponse) {
-      throw new Error('Cannot reach OpenRouter API. Please check your internet connection and firewall settings.');
+    clearTimeout(testTimeout);
+    
+    if (testResponse && testResponse.ok) {
+      console.log('Connectivity test passed');
+    } else {
+      console.warn('Connectivity test failed, but proceeding with main request...');
     }
-    console.log('Connectivity test passed');
   } catch (testError) {
-    console.error('Connectivity test failed:', testError);
-    if (testError.message.includes('timeout') || testError.name === 'AbortError') {
-      throw new Error('Network timeout: Cannot reach OpenRouter API. Please check your internet connection.');
-    }
-    throw new Error('Network error: Cannot reach OpenRouter API. Please check your internet connection and firewall settings.');
+    console.warn('Connectivity test error (non-fatal):', testError);
+    // Don't throw - let the main request handle it
   }
   
   let response;
